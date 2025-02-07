@@ -1,0 +1,1018 @@
+---
+title: "Subjective Equivalence Scales Underpinned by Minimum Income Question"
+author: 
+  - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
+thanks: The author would like to thank someone for their comments and suggestions. Any remaining issues rest with the author.
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  bookdown::pdf_document2: 
+    latex_engine: xelatex
+    dev: tikz
+    keep_tex: true
+    number_sections: true
+    toc: false
+  bookdown::gitbook: null
+booktabs: yes
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    - \usepackage{dcolumn}
+    - \pagenumbering{gobble}
+abstract: \singlespacing We consider minimum income questions to examine eq scales.
+---
+<!-- bibliography: refs.bib 
+     there seems to be a problem with the bib file, 
+     but I do not understand why it arises...
+     
+     Error reading bibliography file refs.bib:
+    (line 288, column 1):
+     unexpected '@'
+    
+-->
+
+<!--
+    - \usepackage{draftwatermark}
+\SetWatermarkText{Draft}
+\AddToShipoutPictureFG{
+  \AtPageCenter{% or \AtTextCenter
+    \makebox[0pt]{\rotatebox[origin=c]{45}{%
+      \scalebox{5}{\texttransparent{0.3}{Draft}}%
+    }}
+  }
+}
+-->
+
+<!-- subject: JEL Classifications I15, J21
+thanks: The authors would like to thank someone. 
+csl: empirical-economics.csl 
+-->
+
+```{r global_options, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(cache=TRUE,
+                      echo=FALSE,
+                      autodep=TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      #dev='tikz',
+                      dev='pdf',
+                      out.width='60%',
+                      out.height='60%',
+                      fig.align='center')
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+knitr::opts_knit$set(kable.force.latex = TRUE)
+
+library(tidyverse)
+library(haven)
+library(lubridate)
+library(kableExtra)
+library(np)    
+library(nnet)
+library(AER)
+library(ivreg)
+library(sandwich)
+library(REndo)
+library(qwraps2)
+  options(qwraps2_markup = "latex")
+library(stargazer)
+library(MASS)
+
+
+options(scipen = 99,
+        np.messages=FALSE)
+
+set.seed(42)
+num.boot <- 1499 
+num.splits <- 5000
+q1 <- 0.025
+q2 <- 0.975
+nmulti <- 20
+
+### Working Directory
+#setwd('/Volumes/GoogleDrive/My Drive/Inequality/EqScalesFood')
+```
+
+```{r some-functions}
+### Some useful functions ###
+
+CM <- function(cm) {
+  factor.values.eval <- colnames(cm)
+  CM <- matrix(0,nrow(cm),nrow(cm))
+  rownames(CM) <- rownames(cm)
+  colnames(CM) <- rownames(cm)
+  for(i in 1:ncol(cm)) CM[,(1:nrow(cm))[rownames(cm)==factor.values.eval[i]]] <- cm[,i]
+  return(list(CM=CM,CCR=sum(diag(CM))/sum(CM)))
+}
+
+## this is a bit silly, but is driven by the difference in names between 
+## prediction and model... Could also change the model data naming...
+CM.logit <- function(cm) {
+  factor.values.eval <- rownames(cm)
+  CM <- matrix(0,nrow(cm),nrow(cm))
+  rownames(CM) <- rownames(cm)
+  colnames(CM) <- rownames(cm)
+  for(i in 1:ncol(cm)) CM[,(1:nrow(cm))[rownames(cm)==factor.values.eval[i]]] <- cm[,i]
+  return(list(CM=CM,CCR=sum(diag(CM))/sum(CM)))
+}
+
+stars <- function(x){
+  case_when(x >=0 & x <= 0.005 ~ "$^a$", 
+            x >=0 & x <= 0.01 ~ "$^b$",
+            x >=0 & x <= 0.05 ~ "$^c$",
+            x >=0 & x <= 0.1 ~ "$^d$",
+            x>0.1 ~ "")
+}
+
+ctab <- function(sm){
+  mm <- summary(sm,vcov=vcovHC(sm))
+  modsum <- mm$coefficients
+  n <- rownames(modsum)
+  ses <- paste0("(",formatC(modsum[,2],format="f",digits=3, drop0trailing = F),")")
+  z <- stars(modsum[,4])
+  betas <- paste0(formatC(modsum[,1],format="f",digits=4, drop0trailing = F),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+nlstab <- function(sm){
+  modsum <- sm$parameters
+  n <- rownames(modsum)
+  CIs <- paste0("(",format(modsum[,1]-1.96*modsum[,2],digits=1,nsmall=2)," -- ",
+                format(modsum[,1]+1.96*modsum[,2],digits=1,nsmall=2), ")")
+  betas <- format(modsum[,1],digits=1,nsmall=4)
+  t1 <- tibble(n=n,b=betas,s=CIs) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+ivctab <- function(sm){
+  mm <- summary(sm)
+  modsum <- mm$coefficients
+  n <- rownames(modsum)
+  ses <- paste0("(",formatC(modsum[,2],format="f",digits=3, drop0trailing = F),")")
+  z <- stars(modsum[,4])
+  betas <- paste0(formatC(modsum[,1],format="f",digits=4, drop0trailing = F),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+  modnost <- sm$diagnostics
+  nn <- rownames(modnost)
+  degfree1 <- as.character(modnost[,1])
+  z1 <- stars(modnost[,4])
+  ivstat <- paste0(formatC(modnost[,3],format="f",digits=3, drop0trailing = F),z1)
+  t2 <- tibble(n=nn,params=degfree1,results=ivstat)
+  t <- rbind(t1,t2)
+}
+
+sptab <- function(sm){
+  modsum <- sm
+  n <- rownames(modsum)
+  colnames(sm) <- c("betas","ses")
+  tt <- sm[,1]/sm[,2]
+  pp <- 2*pnorm(-abs(tt))
+  n <- rownames(modsum)
+  ses <- paste0("(",format(modsum[,2],digits=1,nsmall=3),")")
+  z <- stars(pp)
+  betas <- paste0(format(modsum[,1],digits=1,nsmall=4),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+estab <- function(sm){
+  sm.all <- sm
+  sm <- as.matrix(sm)
+  n <- paste0(sm[,1]," ",sm[,2])
+  ses <- paste0("(",formatC(as.numeric(sm[,4]),format="f",digits=3, drop0trailing = F),")")
+  #z <- stars(sm[,4]) - not the right function, and not going to include.
+  sm3.form <- formatC(as.numeric(sm[,3]),format="f",digits=4)
+  #betas <- paste0(sm3.form,z)
+  t1 <- tibble(n=n, b=sm3.form,s=ses) %>%
+    pivot_longer(!n,names_to="result-type",values_to = "results") %>%
+    separate(n, into =c("adults","kids"))
+  estab.out <- t1[,c(1,2,4)]
+}
+
+only_perc <- function(x,
+                   digits = getOption("qwraps2_frmt_digits", 2),
+                   na_rm = FALSE,
+                   show_denom = "ifNA",
+                   show_symbol = TRUE,
+                   markup = "latex") #getOption("qwraps2_markup", "latex")) 
+                   {
+  d <- sum(!is.na(x))
+  n <- sum(x, na.rm = na_rm)
+  p <- frmt(100*n/d, digits)
+
+  if (show_denom == "never") {
+    rtn <- paste0(p,"%")
+  } else {
+    if (show_denom =="always" | any(is.na(x))) {
+      rtn <- paste0(frmt(as.integer(n)), "/", frmt(as.integer(d)), " (", p, "%)")
+    } else {
+      rtn <- paste0(p,"%")
+    }
+  }
+
+  if (!show_symbol) {
+    rtn <- gsub("%", "", rtn)
+  }
+
+
+  if (markup == "latex") {
+    rtn <- gsub("%", "\\\\%", rtn)
+  }
+
+  return(rtn)
+}
+
+
+```
+
+
+```{r lcs}
+
+# LCS data
+person <- read_dta(file = "data/lcs-2014-2015-persons-final-v1.dta")
+total <- read_dta(file = "data/lcs-2014-2015-total-v1.dta")
+household <- read_dta(file = "data/lcs-2014-2015-households-v1.dta")
+#household.assets <- read_dta(file = "data/lcs-2014-2015-household-assets-v1.dta")
+
+# hhsize, number of kids (age < 15) in each household
+person1 <- person %>%
+  group_by(UQNO) %>%
+  summarise(hhsize = n(), # household size by appearance times of each ID
+            kids = sum(Q14AGE < 15), # number of child (age<15)
+            adults = hhsize - kids
+            ) %>%
+  mutate(UQNO = as.character(UQNO))
+
+person2 <- person %>%
+  dplyr::select(UQNO, PERSONNO, Q12SEX, Q13POPGROUP, Q14AGE, Q17MARITAL, Q21HIGHLEVEL, 
+         province_code, SETTLEMENT_TYPE) %>%
+  filter(PERSONNO==1, 
+         Q17MARITAL != 9,
+         Q21HIGHLEVEL != 31,
+         Q21HIGHLEVEL != 32,
+         Q21HIGHLEVEL != 99) %>%  
+  transmute(UQNO = as.character(UQNO),
+            age = Q14AGE,
+            hhh.dummy = ifelse(Q12SEX==1,1,0),
+            hhh.male = as_factor(Q12SEX),
+            ethnic = as_factor(Q13POPGROUP),
+            ba = ifelse(Q13POPGROUP==1,1,0),
+            cl = ifelse(Q13POPGROUP==2,1,0),
+            as = ifelse(Q13POPGROUP==3,1,0),
+            wh = ifelse(Q13POPGROUP==4,1,0),
+            wc = ifelse(province_code==1,1,0),
+            ec = ifelse(province_code==2,1,0),
+            nc = ifelse(province_code==3,1,0),
+            fs = ifelse(province_code==4,1,0),
+            kz = ifelse(province_code==5,1,0),
+            nw = ifelse(province_code==6,1,0),
+            gp = ifelse(province_code==7,1,0),
+            mp = ifelse(province_code==8,1,0),
+            lp = ifelse(province_code==9,1,0),
+            province = as_factor(province_code),
+            urbfor = ifelse(SETTLEMENT_TYPE==1,1,0),
+            urbinf = ifelse(SETTLEMENT_TYPE==2,1,0),
+            tradit = ifelse(SETTLEMENT_TYPE==4,1,0),
+            rurfor = ifelse(SETTLEMENT_TYPE==5,1,0),
+            settle = factor(SETTLEMENT_TYPE, levels = c(1,2,4,5),
+                            labels=c("Urban Formal","Urban Informal",
+                                     "Traditional Area","Rural Formal")),
+            marital = as_factor(Q17MARITAL),
+            education = factor(Q21HIGHLEVEL, levels = c(98,1:25,27,28:29,26,30),
+                              labels=c("none",rep("nqf0",9),"nqf1","nqf2","nqf3",rep("nqf4",2),
+                                       "nqf1","nqf2","nqf3",rep("nqf5",3), rep("nqf4",2),"nqf5",
+                                       "nqf6",rep("nqf7",2),rep("nqf8",2),rep("nqf9-10",2))),
+            Q21HIGHLEVEL) %>%
+  droplevels() 
+
+# household level variables
+house.df <- household %>%
+  dplyr::select(
+    UQNO, income_inkind, expenditure_inkind, SURVEYDATE, Q229NETINCOME, 
+    Q6105IMAGINE, Q116PRESENT, hholds_wgt) %>%
+  filter(Q6105IMAGINE != 9, Q116PRESENT != 9) %>% ## loses 493 obs..
+  transmute(
+    UQNO = as.character(UQNO),
+    wt = hholds_wgt,
+    surveydate = dmy(SURVEYDATE),
+    surveymonth = month(surveydate),
+    surveyyear = year(surveydate),
+    x = as.numeric(expenditure_inkind), 
+    # the value of expenditures including in kind expenditure incurred by 
+    # households for 12 months inflated/deflated to April 2015 using CPI
+    x.month = x/12, #Monthly total expenditure
+    y = as.numeric(income_inkind),  
+    # 63 observations have 0 values... length(which(house.df$y==0))
+    # also deflated/inflated to April 2015
+    y.month = y/12,
+    lnx = log(x.month),
+    lny = log(y.month),
+    minq = Q229NETINCOME, 
+    # 466 zero values (after dropping the 493 above) ... length(which(house.df$minq == 0))
+    lnminq = log(minq),
+    ladder = Q6105IMAGINE,
+    wealth = as_factor(Q116PRESENT)
+  ) %>%
+  filter(is.finite(lny),
+         is.finite(lnx),
+         is.finite(lnminq)) %>%  # Not sure this affects the final lcs data, though
+  droplevels()
+  
+
+
+#merge above dataframes to get a dataframe LCS2014
+LCS2014 <- person1 %>%
+  full_join(person2, by="UQNO") %>%
+  full_join(house.df, by="UQNO") %>%
+  drop_na() %>%
+  filter(adults > 0,
+         adults <= 6,
+         kids <= 4)
+## It appears that we lose 312 observations for missing values, 
+## we lose 556 in total; the extra coming from limiting adults and kids in hh
+  
+# save image
+#save.image("data/LCS2014.Rdata")
+
+# save a single data frame: LCS2014
+save(LCS2014, file="data/LCS2014df.Rdata")
+
+rm(person,household,total)
+
+data.full <- LCS2014 %>%
+  mutate(ao = ordered(adults),
+         ko = ordered(kids),
+         k0 = 1*(kids==0),
+         k1 = 1*(kids==1),
+         k2 = 1*(kids==2),
+         k3 = 1*(kids==3),
+         k4 = 1*(kids==4),
+       #  k5 = 1*(kids==5),
+      #   k6 = 1*(kids==6),
+         a1 = 1*(adults==1),
+         a2 = 1*(adults==2),
+         a3 = 1*(adults==3),
+         a4 = 1*(adults==4),
+         a5 = 1*(adults==5),
+         a6 = 1*(adults==6),
+       #  a7 = 1*(adults==7),
+      #   a8 = 1*(adults==8),
+         lnx.sq = lnx^2,
+         lny.sq = lny^2,
+         age.sq = age^2)
+
+
+base.data <- data.full %>%
+  dplyr::select(UQNO,ko, ao, age, age.sq, hhh.male, 
+                k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6,
+                ethnic, province, settle, marital, education, 
+                lnx, lnx.sq, lny, lny.sq, minq, lnminq) %>%
+  transmute(lnx, lnx.sq, lny, lny.sq, ko, ao,
+            k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6, minq, lnminq,
+            age = as.integer(age),
+            age.sq = as.integer(age.sq),
+            hhh.male = as.factor(hhh.male),
+            ethnic = as.factor(ethnic),
+            province = as.factor(province),
+            settle = as.factor(settle),
+            marital = as.factor(marital),
+            education = as.factor(education)) 
+
+main.df <- base.data
+## Some parameters
+n <- nrow(main.df)
+n2 <- 24
+n1 <- n-n2
+
+save(main.df, file="data/main.Rdata")
+```
+
+
+\newpage
+\pagenumbering{arabic}
+
+# Introduction??
+
+@grodnersalas2017 - there is an update of that -  describe the information content of equivalence scales that can be captured from minimum needs income...  @blundelllewbel1991 and  describe the information content in equivalence scales. In order to make comparisons across households, @lewbel1989 describes ordinal level comparability, while @blackorbydonaldson1993 describe ordinal full comparability plus. These ideas relate to the ability to compare utility across households; the underlying information basis depends on the ability to calculate equivalence scales, and is only relevant for monotone transformations of utility that keep the scale constant. Most commonly, this is done through an Independence of Base assumption [@lewbel1989] or an Equivalence-Scale Exactness [@blackorbydonaldson1993] assumption, which are the same. Such restrictions are often rejected [@pendakur1999]^[I really need to do some checking on this with the SA data... I have started to do some of this analysis, but plausibly need to do more...]; A slightly weaker assumption can lead to general equivalence scales, which are not uniform across the entire population. One such weakening is to allow for monotone transformations, but only at a specific level of utility. In essence, making such a comparison relies on ordinal local comparability [@grodnersalas2017], and leads to local equivalence scales. 
+
+One might wonder whether such scales are even useful. However, @blundelllewbel1991 suggested one solution that would help in the identification of demand systems, which @blackorbydonaldson1993 also suggested, arguing it was very relevant for policy. The suggestion was we should focus attention on utility levels that allow individuals to make ends meet, referring to this as the minimum level of utility. Furthermore, the poverty line is the level of income assumed/required for a household to reach that minimum level of utility.  
+
+# Methods
+
+## Subjective poverty lines and marginal costs
+
+We apply fairly standard methods, assuming a nonparametric relationship \eqref{eq:nprelation} between minimum income $(\underline{Y})$, actual income/expenditure $(Y)$, household demographic characteristics $(D)$ and other characteristics related to household decisions, such as location and marital status, $(Z)$.
+
+\begin{equation}
+\label{eq:nprelation}
+\ln \underline{Y} = f(Y,D,Z)
+\end{equation}
+
+We parameterize it via a linear index, as in \eqref{eq:linindex}.
+
+\begin{equation}
+\label{eq:linindex}
+\ln \underline{Y} = \alpha + \beta \ln Y + \sum_j \delta_j D_j + \sum_j \zeta_j Z_j 
+\end{equation}
+
+Rearranging to find the intersection - goedhart - yields the subjective poverty line, as a function of the demographic and other characteristics \eqref{eq:spl}.
+
+\begin{equation}
+\label{eq:spl}
+\underline{Y} =  \exp \left( \frac{\alpha + \sum_j \delta_j D_j + \sum_j \zeta_j Z_j }{1-\beta} \right)
+\end{equation}
+
+From these subjective poverty lines, marginal child and adult costs can be derived for each additional household member $(h \in \{a,k\})$, where $a$ and $k$ refer to adult and child, respectively, while $\underline{Y}^*$ is the reference household, which we will define as having one adult and zero children. **Is this independent of the number of adults and children already in the house? As before, we can turn off the "other" variables?** 
+
+\begin{equation}
+\label{eq:margcost}
+M(h) = \frac{\underline{Y}(h) - \underline{Y}(h-1) }{\underline{Y}^*}
+\end{equation}
+
+The linear model specified yields marginal costs that are partially independent of the underlying size of the household, and, therefore, may not be appropriate. *Are they partially independent? Not really, because of the exponential functions... The SPLs are partially independent, though.* Specifically, it is possible the that the marginal cost of a first child is larger/smaller in a household with two adults than in a household with one adult. Therefore, we also estimate the nonparametric model in \eqref{eq:nprelation}. To capture the intersection, we apply numeric methods, because the inverse of an unspecified function cannot be determined. 
+
+*Option 1:* First, we fix $D$ and $Z$ to create a data subsample. We use the fixed values of $D$ and $Z$, as well as the observed $\ln Y$ values to predict $\hat{f}$ for all households in the subset. We then choose the $\ln Y$ that is closest to the fitted value, as the subjective poverty line for that household type. *Worry:* this value may not be all that "close". 
+
+*Option 2:* First, we fix $D$ and $Z$. Second, we simulate $\ln Y$ across a wide range. We use the simulated data to predict $\hat{f}$ for all households in the subset. We then choose the simulated $\ln Y$ that is closest to the fitted value, as the subjective poverty line for that household type. *Worry:* this value may not match what households say they spend?
+
+\begin{equation}
+\label{eq:nprelation2}
+\ln \underline{Y} = \hat{f}(\ln Y,\tilde{D},\tilde{Z})
+\end{equation}
+
+## Empirical modelling
+
+```{r lcs-np-data, dependson="lcs"}
+
+load("data/np-minq-results2.Rdata")
+
+df <- main.df %>%
+  mutate(adults1 = ao,
+         kids1 = ko,
+         lnminq = as.vector(lnminq),
+         adults = as.numeric(ao),
+         kids = as.numeric(ko)) %>%
+  as.data.frame()
+
+
+```
+
+
+```{r lcs-sub, dependson="lcs-np-data"}
+
+df.data <- df %>%
+  mutate(min.xq = lnx - lnminq,
+         min.yq = lny - lnminq) 
+
+subset1a.df <- df.data %>%
+  filter(min.yq <= 1 & min.yq >= -1)
+
+subset1b.df <- df.data %>%
+  filter(min.xq <= 1 & min.xq >= -1)
+
+
+subset2a.df <- df.data %>%
+  filter(min.yq <= 0)
+
+subset2b.df <- df.data %>%
+  filter(min.xq <= 0)
+
+dfref <- cbind(k1 = 0, k2 = 0, k3 = 0, k4 = 0, 
+               a2 = 0, a3 = 0, a4 = 0, a5 = 0, a6 = 0)
+
+akmat <- base.data %>%
+  dplyr::select(ao,ko,
+                a1, a2, a3, a4, a5, a6, 
+                k0, k1, k2, k3, k4) %>%
+  unique() %>%
+  arrange(ko) %>%
+  group_by(ko) %>%
+  arrange(ao) %>%
+  ungroup()
+
+dfalt <- akmat %>%
+  dplyr::select(k1,k2,k3,k4,
+                a2,a3,a4,a5,a6) 
+
+dfdiff <- data.matrix(sweep(dfalt,2,dfref)) 
+```
+
+
+
+# Results
+
+## Descriptives
+
+## Parametric subjective poverty lines
+
+Estimation results from linear model suggest that there is no kid "effect"...However, there are very big education effects. So, I am going to try to match the expenditure with the minq and see if this looks any different?
+
+
+```{r linear-spl, dependson="lcs-sub"}
+
+base.data <- main.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = round(spl.base,3), 
+             spl.sd = round(spl.sd,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+```{r linear-spl-sub1a, dependson="lcs-sub"}
+
+base.data <- subset1a.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.sub1a <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = round(spl.base,3), 
+             spl.sd = round(spl.sd,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+```{r linear-spl-sub1b, dependson="lcs-sub"}
+
+base.data <- subset1b.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.sub1b <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = round(spl.base,3), 
+             spl.sd = round(spl.sd,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+```{r linear-spl-sub2a, dependson="lcs-sub"}
+
+base.data <- subset2a.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.sub2a <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = round(spl.base,3), 
+             spl.sd = round(spl.sd,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+```{r linear-spl-sub2b, dependson="lcs-sub"}
+
+base.data <- subset2b.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.sub2b <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = round(spl.base,3), 
+             spl.sd = round(spl.sd,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+
+```{r spl-table, dependson="linear-spl; linear-spl-sub1a; linear-spl-sub1b; linear-spl-sub2a; linear-spl-sub2b; some-functions", results="asis", size = "footnotesize"}
+
+spl0 <- estab(spl.linminq) %>% rename(all=results)
+spl1 <- estab(spl.linminq.sub1a) %>% rename(subset1a=results)
+spl2 <- estab(spl.linminq.sub1b) %>% rename(subset1b=results)
+spl3 <- estab(spl.linminq.sub2a) %>% rename(subset2a=results)
+spl4 <- estab(spl.linminq.sub2b) %>% rename(subset2b=results)
+
+spl.tab <- tibble(spl0,spl1[,3],spl2[,3],spl3[,3],spl4[,3]) #, es1b[,3], es2[,3], es2b[,3],es3[,3],es3b[,3])
+
+
+kable(spl.tab, format = "latex", align='rrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of equivalence scales based on minimum household income, underpinned by linear regression model",
+      col.names=c("Adults","Kids","All","Subset1a","Subset1b","Subset2a","Subset2b")) %>%
+  #add_header_above(c(" "=2, "Linear"=3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated equivalence scale by household type, and bootstrapped standard error (399 replications). Estimates underpinned by linear model of minimum income income required by the household against a range of controls including (log) expenditure and household structure.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
+
+
+## Nonparametric subjective poverty lines
+
+```{r np-spl, dependson="lcs-sub"}
+
+# set the data to all, which is vectorised for np.
+base.data <- df.data
+d1 <- base.data #base.data
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+```
+
+```{r np-spl-sub1a, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset1a.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.1a <- NPspl
+
+
+```
+
+```{r np-spl-sub1b, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset1b.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.1b <- NPspl
+
+
+```
+
+```{r np-spl-sub2a, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset2a.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.2a <- NPspl
+
+```
+
+```{r np-spl-sub2b, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset2b.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.2b <- NPspl
+
+
+```
+
+
+```{r NPspl-table, dependson="np-spl; np-spl-sub1a; np-spl-sub1b; np-spl-sub2a; np-spl-sub2b; some-functions", results="asis", size = "footnotesize"}
+
+all <- NPspl
+s1a <- NPspl.1a
+s1b <- NPspl.1b
+s2a <- NPspl.2a
+s2b <- NPspl.2b
+
+bkmat <- akmat[,1:2] %>%
+  rename(adults=ao,
+         kids=ko)
+
+spl.tab <- tibble(bkmat,all,s1a,s1b,s2a,s2b)
+
+
+kable(spl.tab, format = "latex", align='rrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of equivalence scales based on minimum household income, underpinned by nonparametric regression model",
+      col.names=c("Adults","Kids","All","Subset1a","Subset1b","Subset2a","Subset2b")) %>%
+  #add_header_above(c(" "=2, "Linear"=3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated equivalence scale by household type, and bootstrapped standard error (not bootstrapped, yet). Estimates underpinned by nonparametric model of minimum income income required by the household against a range of controls including (log) expenditure and household structure.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
+
+
+\newpage
+\singlespacing
+# References {-}
