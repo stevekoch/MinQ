@@ -10,12 +10,14 @@
 # Session Data files
 #.RData - running NP files, so need to keep these around
 .RDataTmp
-*Covid-Data/*
+
 
 # Other data files
 *.dta
 *.dat
 *.xml
+*data
+*LCSdata
 
 
 # User-specific files
