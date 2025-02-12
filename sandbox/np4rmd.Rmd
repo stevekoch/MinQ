@@ -1,0 +1,288 @@
+---
+title: "np-for-Rmd"
+output: html_document
+date: "2025-02-11"
+---
+
+
+
+```{r lcs-np-data, dependson="lcs"}
+
+load("data/np-minq-results2.Rdata")
+
+df <- main.df %>%
+  mutate(adults1 = ao,
+         kids1 = ko,
+         lnminq = as.vector(lnminq),
+         adults = as.numeric(ao),
+         kids = as.numeric(ko)) %>%
+  as.data.frame()
+
+
+```
+
+
+## Nonparametric subjective poverty lines
+
+```{r np-spl, dependson="lcs-sub"}
+
+# set the data to all, which is vectorised for np.
+base.data <- df.data
+d1 <- base.data #base.data
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+```
+
+```{r np-spl-sub1a, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset1a.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.1a <- NPspl
+
+
+```
+
+```{r np-spl-sub1b, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset1b.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.1b <- NPspl
+
+
+```
+
+```{r np-spl-sub2a, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset2a.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.2a <- NPspl
+
+```
+
+```{r np-spl-sub2b, dependson="lcs-sub"}
+
+# set the data 
+base.data <- df
+d1 <- subset2b.df 
+
+akmat$adults1 <- akmat$ao
+akmat$kids1 <- akmat$ko
+
+# Need baseline values
+NPspl <- NULL
+for (j in 1:dim(akmat)[1]){
+    
+   #create eval data using median values except for expenditure
+   suppressWarnings(
+    eval.df <- data.frame(akmat[j,],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      age = uocquantile(d1$age, 0.5),  #48
+      age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lnx = quantile(d1$lnx, probs = (seq(0.001,0.999,0.001)))
+      )
+    )
+    
+    #fit the newdata
+    p1 <- fitted(npreg(bw4,
+                  newdata = eval.df))
+    
+    gap.sq <- (p1-eval.df$lnx)^2
+    
+    min.sq.row <- which(gap.sq == min(gap.sq)) 
+    
+    spl.val <- exp(p1[min.sq.row])
+    NPspl <- rbind(NPspl,spl.val)
+}
+
+# just for looking at results?
+rownames(NPspl) <- NULL
+
+NPspl.2b <- NPspl
+
+
+```
+
+
+```{r NPspl-table, dependson="np-spl; np-spl-sub1a; np-spl-sub1b; np-spl-sub2a; np-spl-sub2b; some-functions", results="asis", size = "footnotesize"}
+
+all <- NPspl
+s1a <- NPspl.1a
+s1b <- NPspl.1b
+s2a <- NPspl.2a
+s2b <- NPspl.2b
+
+bkmat <- akmat[,1:2] %>%
+  rename(adults=ao,
+         kids=ko)
+
+spl.tab <- tibble(bkmat,all,s1a,s1b,s2a,s2b)
+
+
+kable(spl.tab, format = "latex", align='rrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of equivalence scales based on minimum household income, underpinned by nonparametric regression model",
+      col.names=c("Adults","Kids","All","Subset1a","Subset1b","Subset2a","Subset2b")) %>%
+  #add_header_above(c(" "=2, "Linear"=3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated equivalence scale by household type, and bootstrapped standard error (not bootstrapped, yet). Estimates underpinned by nonparametric model of minimum income income required by the household against a range of controls including (log) expenditure and household structure.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```

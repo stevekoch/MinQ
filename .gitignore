@@ -17,7 +17,7 @@
 *.dat
 *.xml
 *data
-*LCSdata
+*LCSdata*
 
 
 # User-specific files
