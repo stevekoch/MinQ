@@ -83,7 +83,7 @@ library(stargazer)
 library(MASS)
 
 
-options(scipen = 99,
+options(scipen = 999,
         np.messages=FALSE)
 
 set.seed(42)
@@ -256,9 +256,9 @@ discriminant <- (b^2) - (4*a*c)
 ```{r lcs}
 
 # LCS data
-person <- read_dta(file = "../LCSdata/lcs-2014-2015-persons-final-v1.dta")
-total <- read_dta(file = "../LCSdata/lcs-2014-2015-total-v1.dta")
-household <- read_dta(file = "../LCSdata/lcs-2014-2015-households-v1.dta")
+person <- read_dta(file = "../data/201415/lcs-2014-2015-persons-final-v1.dta")
+total <- read_dta(file = "../data/201415/lcs-2014-2015-total-v1.dta")
+household <- read_dta(file = "../data/201415/lcs-2014-2015-households-v1.dta")
 #household.assets <- read_dta(file = "data/lcs-2014-2015-household-assets-v1.dta")
 
 # hhsize, number of kids (age < 15) in each household
@@ -362,6 +362,7 @@ LCS2014 <- person1 %>%
 #save.image("data/LCS2014.Rdata")
 
 # save a single data frame: LCS2014
+# This gets used by the NP files.
 #save(LCS2014, file="data/LCS2014df.Rdata")
 
 rm(person,household,total)
@@ -415,6 +416,28 @@ n1 <- n-n2
 ```
 
 
+```{r lcs-np-data, dependson="lcs"}
+
+load("../data/np-minq-results.Rdata")
+
+## This should have been saved with the data, while running the np analysis.
+## Unfortunately, it was not, so the code from the np fle is copied here
+## df is only the data frame for the np analysis, nothing else!
+df <- LCS2014 %>%
+  select(lnx, lny, adults, kids, hhh.male, marital, ethnic, province, settle, education,
+         lnminq)
+
+## Vectorise for np package?
+## Here we are using factors and ordered
+df$lnminq <- as.vector(df$lnminq)
+df$kids1 <- factor(df$kids)
+df$adults1 <- factor(df$adults)
+df$kids2 <- ordered(df$kids)
+df$adults2 <- ordered(df$adults)
+
+
+```
+
 \newpage
 \pagenumbering{arabic}
 
@@ -423,6 +446,61 @@ n1 <- n-n2
 @grodnersalas2017 - there is an update of that -  describe the information content of equivalence scales that can be captured from minimum needs income...  @blundelllewbel1991 and  describe the information content in equivalence scales. In order to make comparisons across households, @lewbel1989 describes ordinal level comparability, while @blackorbydonaldson1993 describe ordinal full comparability plus. These ideas relate to the ability to compare utility across households; the underlying information basis depends on the ability to calculate equivalence scales, and is only relevant for monotone transformations of utility that keep the scale constant. Most commonly, this is done through an Independence of Base assumption [@lewbel1989] or an Equivalence-Scale Exactness [@blackorbydonaldson1993] assumption, which are the same. Such restrictions are often rejected [@pendakur1999]^[I really need to do some checking on this with the SA data... I have started to do some of this analysis, but plausibly need to do more...]; A slightly weaker assumption can lead to general equivalence scales, which are not uniform across the entire population. One such weakening is to allow for monotone transformations, but only at a specific level of utility. In essence, making such a comparison relies on ordinal local comparability [@grodnersalas2017], and leads to local equivalence scales. 
 
 One might wonder whether such scales are even useful. However, @blundelllewbel1991 suggested one solution that would help in the identification of demand systems, which @blackorbydonaldson1993 also suggested, arguing it was very relevant for policy. The suggestion was we should focus attention on utility levels that allow individuals to make ends meet, referring to this as the minimum level of utility. Furthermore, the poverty line is the level of income assumed/required for a household to reach that minimum level of utility.  
+
+## Intro from Bernice
+
+Over the years the measurement of poverty and inequality has become a point of focus for economists and policymakers, particularly in countries like South Africa, where the poverty rates remain high, and income disparities are stark (Leibbrandt et al., 2012). In determining poverty rates, the method employed by Statistics South Africa is an absolute poverty line where they set three primary thresholds: the upper-bound, lower-bound and food poverty lines (Statistics South Africa, 2022). These lines are constructed using the cost-of-basic-needs approach which links welfare to the consumption of goods and services, basically computing the cost of basic needs based on the reported consumption expenditures (Statistics South Africa, 2021). Money-metric measures, such as the South African poverty line, aid in providing a tool for the statistical measurement of poverty. However, the use of an absolute approach to poverty establishes a fixed amount that, even after accounting for inflation, does not alter over time to reflect changes in general living standards or costs. 
+
+Some studies (Seekings, 2007; Meth & Dias, 2004), although underlining the importance of money-metric measures in setting a threshold, argue that poverty measures based on income and expenditure ignore the non-income components of living standards. Others argue that money-metric measures are insufficient for evaluating well-being as they are insensitive to fluctuations that are caused by differences in household size and other factors within a household (Posel et al., 2020; Ravallion & Lokshin, 2002; Zwane, 2018). Additionally, money-metric measures may be inaccurate in assessing the degree of poverty if the expenditures or income measures used are not closely linked to the various aspects of the household’s living standards (Posel & Rogan, 2014). Thus, when using income or expenditure to assess economic well-being, it is important to consider individual or household differences in characteristics that affect needs. These differences could be household size and composition, regional cost of living differences and subjective perceptions of well-being (Daley et al., 2020). Some researchers have attempted to rectify this by accounting for household structure and regional differences in assessing multidimensional poverty in South Africa (Megbowan, 2018; Fransman & Yu, 2019). However, this approach does not account for economies of scale in income or expenditure (for example, a family of two may require more money than a single person but not twice as much), nor does it account for the difference in requirements for adults versus children (Daley, et al., 2020).
+
+One alternative way is by employing a subjective income poverty approach, which is based on the “happiness and economics” literature (Ravallion, 2014; Ferrer-i-Carbonell & Van Praag, 2003). This subjective income poverty approach uses responses to the Minimum Income Questions (MINQ) and seeks to close the gap by assessing individuals’ perceptions of the minimum required income for an acceptable standard of living (Goedhart et al., 1977). The MINQ lets households report the minimum net income they estimate is necessary to “get by”, capturing a broader range of welfare components that differ by family type, size and geographic location (Byaruhanga et al.,2017; Wang, et al., 2020). Assessing subjective poverty can provide additional insights into how households perceive their economic well-being in relation to their actual income, highlighting disparities that objective measures might miss. This is because subjective measures are not dependent on pre-determined, expert-derived poverty thresholds (Ravallion & Lokshin, 2001). Using the subjective poverty approach gives the benefit of not only better understanding some of the roles and robustness of various determinants of poverty but can also help us detect the key determinants that policy initiatives should focus on (Dartanto & Otsubo, 2013). 
+
+Despite the existing body of research on poverty in South Africa (Woolard & Leibbrant, 1999; Daley et al., 2020; Posel & Rogan, 2014), there are some gaps remaining regarding the role of household dynamics and regional disparities. There are also gaps in what these differences mean in determining a subjective poverty level. Thus, the purpose of this study is to better understand how subjective income levels vary across South African households as well as using the MINQ to capture these differences. This research builds on earlier studies that use the MINQ to explore subjective poverty (Goedhart et al., 1977; Kapteyn et al., 1988). This study explores how a households’ perceived minimum income can vary due to differences in the household size, composition, geographic location and the settlement type. This research aims to provide new insights into the evolving socio-economic landscape of South Africa by using the 2014/2015 living Conditions survey. This work follows a similar method to Wang et al., (2020), in which an OLS regression is computed, and the coefficients are then utilized to estimate subjective poverty lines.
+
+The findings reveal that household composition plays a critical role in shaping income needs, where households with one of more adults have higher subjective poverty levels, and households with three or more adults have lower levels. The results vary with the effect of children within a household, thus further research would be needed to see the effect of children at different ages. The results further highlight significant disparities in subjective poverty thresholds, with households in urban formal areas requiring higher minimum incomes compared to rural and traditional areas
+The structure of the paper is as follows: Section 2 is a review of the literature that looks at the early theories of using subjective measures, like the minimum income question, to gauge people's perceptions of poverty. It also looks at the studies of subjective poverty carried out in South Africa and the shift to using the minimum income question in estimating equivalency scales to better understand changes within households. The data and methodology used in the study are then covered in Section 3, and the results and discussion are covered in Section 4. The conclusion, included in Section 5, provides a summary of the main conclusions of the study.
+
+## Lit Review from Bernice
+
+One of the earliest estimations of subjective poverty measures (Goedhart, et al., 1977) introduces the idea of developing a poverty line using the Minimum Income Question (MINQ). The authors argue that people's opinions of the minimal income required are positively correlated with their own income and family size. As a result, income levels were found to vary according to family size. Kapteyn et al. (1988) extended this body of work by demonstrating that the MINQ can be utilized as a tool for evaluating subjective poverty by stressing its ability to capture an individual's perceived income adequacy. The reason for this is that by asking people what their minimum income is, it can take into consideration differences in living expenses that are driven by demographics and geography. This approach is also linked to the subjective welfare function of income, as proposed by Van Praag (1971), which attempts to capture how individuals perceive and evaluate their well-being in relation to income levels rather than assuming a one-size-fits-all welfare approach.
+
+Over time other studies on the use of subjective measures of poverty using the MINQ have further reinforced early theories by showcasing some advantages in using this method. For example, Flik & Van Praag (1991) highlighted the utility of subjective data in understanding poverty dynamics across heterogenous populations. Additionally, Rojas (2008) utilizes the MINQ question was to measure subjective poverty and finds that a large number of households that are deemed "non-poor" by money-metric metrics still perceive themselves as impoverishment because of factors beyond income such as household composition and regional cost variations. Other studies that used the same methodology found that the more individuals there are in a household, the more income is needed to maintain the household's standard of living when (Vermeulen, 2002; Lanjouw & Ravallion, 1995). These studies demonstrate how subjective metrics of poverty could pick up on elements of other elements of poverty that objective metrics can overlook. 
+
+The MINQ has certain limitations when it comes to poverty assessments. Studies that assess subjective measures of poverty have the disadvantage of potentially being inaccurate because they may reflect respondents' aspirations rather than their actual living conditions, even though respondents may self-report their levels of poverty (Kapteyn et al., 1978; Ravallion & Lokshin, 2002; Sen, 1983). It is recommended that subjective poverty studies be utilized in conjunction with money-metric data rather than in substitute of them in order to provide a more composite measure of poverty (Posel & Rogan, 2014).
+
+In some instances, poverty and inequality analysis rely heavily on equivalence scales, as these scales enable comparisons of income from households of different size and composition (Falter, 2004). An equivalence scale can be defined as a scale that adjusts household income to the degree of economic efficiency of household size and compares welfare levels for each household receiving from income in the same standard (Urakawa & Tokudomi, 2019). There are different approaches to estimating equivalence scales, including expert-based scales, demand system derived scales and subjective equivalence scales.
+
+There is a growing body of literature that uses data on subjective perceptions of economic well-being to derive equivalence scales. Examples of these studies include using income evaluation or minimum income questions (Bishop et al, 2014; Garner & De Vos, 1995; Mysikova et al., 2021; Kapteyn et al., 1988). The subjective approach to estimating equivalence scales recognizes that poverty lines are based on an individual or households’ perception on what constitutes an acceptable standard of living in a certain society (Ravallion, 1992). One approach in estimating equivalence scales is the intersection approach, introduced by Goedhart et al., (1977), where the individuals’ perceptions of their minimum income needed aligns with their actual income. In several of these studies, the MINQ is used to estimate the income needed for a household of a specific composition to reach what they consider an acceptable quality of living. These studies (Bishop et al., 2014; Mysikova et al., 2021) typically use a single-adult reference home. 
+
+Bishop et al. (2014) calculated subjective equivalency scales for Euro Zone nations in comparison to objective OECD scales and discovered that subjective scales exhibit larger economies of scale within a household than objective scales. Furthermore, they discovered that subjective measures suggest a decreasing marginal cost of adding children, whilst the OECD and NRC scales show a constant marginal cost of children. Mysikova et al. (2021) employed a different technique, utilizing the MINQ to first estimate subjective poverty lines, which were then used to generate equivalency scales for EU countries and compared them to the modified OECD scales. Similar to the findings of Bishop et al. (2014), they discover that subjective scales exhibit greater economies of scale than modified OECD scales. They also discover that wealthy countries have superior economies of scale due to their stronger welfare programs. Both of these investigations are based on the intersection methodology established by Goedhart et al. (1977).  Because of the intersection methodology, there ends up being a convergence between subjective equivalence scales and subjective poverty lines as both of these poverty assessments are mainly based on the MINQ.
+
+In South Africa, much of the equivalency scale research uses a parametric or semiparametric scale approach to quantify individual or household income or expenditure (Posel et al., 2016; Rogan, 2012; Yatchew et al., 2003; Posel et al., 2020; Koch, 2022). Posel et al., 2020 estimated equivalence scales for South Africa using the Engel technique, which takes into account the share of a household's expenditure allocated to food. They found that compared to non-African households, African households experience larger economies of scale in household consumption. They also found that children consume less than adults do. Using a different data set and a similar Engel technique, Koch (2022) estimated equivalence scales based on a household's portion of the food budget using the 2014-2015 Living Conditions Survey. According to the study's findings, food shares are higher in bigger households at almost every spending level; however, the increase seems to be less pronounced as family sizes increase, suggesting that there may be household economies of scale. In contrast to Posel et al. (2020), their data also shows that households with youngsters spend comparatively more than households with just adults. However, when it comes to subjective equivalence scales in South Africa, there is limited research available. Among  this research is that by Koch (2023), which focuses on the adequacy of basic needs using data from the 2014–2015 Living Conditions Survey. In order to compare subjective and objective measures of poverty, the study uses a households self-assessed adequacy of food, clothing and housing to estimate subjective poverty scales. Although these scales offer a different view on poverty in South Africa, they mostly rely on objective methods or subjective data instead of the MINQ.
+
+Subjective poverty assessments in South Africa that are based on the MINQ are also limited, with subjective poverty studies looking at either self-assessments of their economic status (Posel & Rogan, 2014), assessments of their life satisfaction (Moller and Saris, 2001) or the determinants of subjective poverty (Bila & Biyase, 2022). Moller and Saris (2001) used the 1995 Quality of Life Trends study to assess subjective poverty with the aim of examining subjective well-being across racial groups. Their study found that there were significant racial inequalities within the country, with Black South Africans reporting higher levels of subjective poverty compared to other racial groups. Bookwalter and Dalenburg (2004) used the 1994 South African Labour and Development Research Unit (SALDRU) data in their analysis of subjective poverty where they found that transportation and housing significantly influence subjective well-being, especially for rural households Posel & Rogan (2014) used the 2008-2009 LCS where respondents were asked to rate themselves from very poor to wealthy to estimate subjective poverty lines in South Africa. Their findings reveal that a household’s self-assessed level of poverty increases as the size of the household increases. Additionally, they found that larger families benefit from economies of scale and resource sharing and that there can be differences in the cost of living due to some wealthier provinces having higher costs of living. Bila & Biyase (2022) looked at the determinants of subjective poverty using the 2014-2015 LCS, with the aim of  examining the impact of gender, education, marital  status and locality on subjective poverty. They found that factors such as landownership and access to services have an effect on rural households’ subjective poverty. Whereas urban households are more likely to be affected by unemployment and health conditions. In general, they discovered that in South  Africa, variables like income, employment, household size and geographic location play a role in how  poverty is defined.
+
+Despite these contributions, South African research does not have a focused examination of subjective poverty lines using the MINQ. Most studies rely on alternative subjective measures, leaving gaps in our understanding of how minimum income perceptions vary across household consumptions and regions. This study aims to fill this gap by using the using the 2014-2015 LCS to estimate subjective poverty lines for households based on the MINQ. 
+
+# Data
+
+## Discussion from Bernice
+
+The data used in this study is from the 2014-2015 South African Living Conditions Survey (LCS) which was collected by Statistics South Africa. The survey contains data regarding household and individual variables such as household assets, household expenditures, employment statuses, gender and age. Although there are other surveys in South Africa that look at these variables such as the General Household Survey, however the LCS contains the MINQ question which is an important part of the analysis of this paper. 
+
+Three data files from the LCS were combined to create the data used in the analysis: the households data file, the individual’s data file, and the total data file. An initial total of 23380 households was obtained by combining these three datasets. The "age" variable in the dataset was used to generate the Children and Adults data, classifying all individuals under the age of 15 as children and all adults living in a home over the age of 15 as adults. After merging, the dataset was filtered to remove zero values from the MINQ variable, which eliminated 504 observations, and zero values from the income-in-kind data, which eliminated 55 observations, leaving 22821 observations. The list of variables used in this analysis are shown in Table 7 1 which can be found in the Appendix. 
+
+The analysis' dependent variable is the bare minimum of income that households require to survive. At first, the survey responses were presented as annual figures. The data was first converted to monthly numbers and then log transformed for the analysis. This was carried out because the MINQ distribution appears to be heavily skewed to the right, with a lengthy tail that extends to higher values. This suggests that while the majority of households report having modest minimal incomes, some have extremely high minimum income requirements, resulting in outliers. This is in line with the high-income inequality prevalent in the Country. However, the distribution of the logged minq seems to be more normally distributed and more symmetrical. Thus, the log transformation of MINQ compresses the scale of larger values which makes it easier to analyse and interpret the data. 
+
+Log transformations are important in trying to stabilize variance as well as mitigate the impact of extreme values, particularly when analysing income data which often exhibits skewness (Gujarati, 2009). Therefore, all values shown in the analysis are shown at the monthly level.
+
+
+The independent variable is household income in kind. This variable was likewise changed into a monthly value, which was then log transformed. This method is in line with research conducted by Ravallion & Lokshin (2002). They focused on income than expenditure to determine poverty levels. The decision to focus on income is based on the fact that it offers a perspective of a household’s situation by including both earned and in-kind sources of income. Furthermore, in assessing minimum requirements, income acts as a gauge of a household’s ability to attain a satisfactory quality of life as it represents the overall resources, at their disposal, for fulfilling crucial costs.
+
+Control variables are also added to the analysis. These control variables represent the different household demographics such as household size and location. This is done to assess the relationship that different household demographics have to the minimum income needs. These variables include:
++   Household Composition: the proportion of adults and children living in the household. This is evaluated in two parts. The first one uses the household of one adult and no children as the basis for the analysis and looks at the number of adults and children as dummies. The second is where adults and children are viewed as a continuous variable. In the dummy variable approach, the number of children and adults within a household are capped 6 because the number of households with more than 6 children and 6 adults is relatively small within the dataset.
++   Geographical Variables: The different provinces within the country are also assessed, with the baseline province being households in the Northwest, and 
++   Location Variables: Settlement types are also factored in where the baseline are households in rural formal areas
+
+
 
 # Methods
 
@@ -528,6 +606,46 @@ dfdiff <- data.matrix(sweep(dfalt,2,dfref))
 # Results
 
 ## Descriptives
+
+I do need to build a table, but that should be quick.
+
+```{r, dependson="lcs", fig.cap = "Loess regression plot: log reported minimum income against log reported income"}
+
+main.df %>% ggplot(aes(x = lny, y = lnminq)) +
+  geom_point(alpha = 0.4, color = "blue") +  
+  geom_smooth(method = "loess", color = "red", se = TRUE) +  
+  labs(
+   # title = "Loess regressiob plot of lo vs. lny",
+    x = "Log of Monthly Income (lny)",
+    y = "Log of Minimum Income (lnminq)"
+  ) +
+  theme_minimal()  # Use a clean theme
+```
+
+
+## Nonparametric regression
+
+```{r np-bw-table, dependson="lcs-np-data", results="asis"}
+
+bandwidths <- cbind(bw1$bw, bw2$bw, bw3$bw) %>%
+  round(digits = 5)
+#colnames(bandwidths) <- c("Continuous","Categorical","Ordered")
+rownames(bandwidths) <- c("Log income","Education qualification","Adults in HH","Kids in HH",
+                          "Male household head","Marital status","Ethnicity","Province","Settlement type")
+
+
+kable(bandwidths, format = "latex", align='rrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=FALSE,
+      linesep="",
+      caption="Nonparmetric optimal bandwidth estimates from regressions of (log) reported minimum income against household level variables.",
+      col.names=c("Variables","Continuous","Categorical","Ordered")) %>%
+  #add_header_above(c(" "=2, "Household Income"=3, "Household Expenditure" = 3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Optimal bandwidths arising from least squares cross-validation. Continuous refers to both children and adults be modeled as continuous variables, while categorical models them as unordered factors, and ordered assumes the factors are ordered.", escape=FALSE, general_title="",threeparttable=TRUE) 
+
+```
+
 
 ## Linear parametric subjective poverty lines
 
