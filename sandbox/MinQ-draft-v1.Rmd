@@ -1,5 +1,5 @@
 ---
-title: "Subjective povery lines:"
+title: "Subjective poverty lines:"
 subtitle: "Estimates from reported minimum income"
 author: 
   - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
@@ -16,9 +16,11 @@ output:
 booktabs: yes
 header-includes:
     - \usepackage{setspace}\doublespacing
+#    - \usepackage{draftwatermark}
     - \usepackage{dcolumn}
-    - \usepackage{subcaption}
-    - \pagenumbering{gobble}
+    - \usepackage{subfig}
+    - \usepackage{threeparttablex}
+    - \usepackage{longtable}
 abstract: \singlespacing We consider minimum income questions to examine eq scales.
 ---
 <!-- bibliography: refs.bib 
@@ -55,9 +57,9 @@ knitr::opts_chunk$set(cache=TRUE,
                       message=FALSE,
                       warning=FALSE,
                       #dev='tikz',
-                      dev='pdf',
+                      dev='png',
                       out.width='80%',
-                      out.height='80%',
+                      out.height='35%',
                       fig.align='center')
 
 def.chunk.hook  <- knitr::knit_hooks$get("chunk")
@@ -83,6 +85,7 @@ library(qwraps2)
 library(stargazer)
 library(MASS)
 
+par(family = 'mono')
 
 options(scipen = 999,
         np.messages=FALSE)
@@ -519,7 +522,7 @@ We tighten the functional form assumption, first, assuming simple linearity, as 
 \end{equation}
 Finally, we extend that to allow for a potential quadratic relationship, as in \eqref{eq:quad}. 
 \begin{equation}
-\label{eq:linindex}
+\label{eq:linindexextend}
 \ln \underline{Y} = \alpha + \beta \ln Y + \gamma \left( \ln Y \right) + \sum_j \delta_j D_j + \sum_j \zeta_j Z_j 
 \end{equation}
 
@@ -606,22 +609,82 @@ dfdiff <- data.matrix(sweep(dfalt,2,dfref))
 
 # Results
 
+
+```{r np-plot-lyn-lnminq, dependson="lcs-np-data"}
+
+np.plot.out <- plot(bw1,
+                    perspective=FALSE,
+                    plot.errors.method="bootstrap",
+                    plot.errors.boot.num=399,
+                    plot.errors.quantiles = c(0.05,0.95),
+                    plot.behavior="data")
+
+
+```
+
+
 ## Descriptives
 
 I do need to build a table, but that should be quick.
 
-```{r loess-plot, dependson="lcs", fig.cap = "Loess regression plot and data points: log reported minimum income against log reported income"}
+```{r loess-plot, dependson="lcs; np-plot-lyn-lnminq", fig.cap = "Nonparametric regression plot and data points: log reported minimum income against log reported income.",}
 
-main.df %>% ggplot(aes(x = lny, y = lnminq)) +
-  geom_point(alpha = 0.4, color = "blue", shape = 1) +  
+# np lot data and fit values for plots
+lnminq.eval <- fitted(np.plot.out$r1)
+lnmq.se <- se(np.plot.out$r1)
+lower.ci <- lnminq.eval + lnmq.se[,1]
+upper.ci <- lnminq.eval + lnmq.se[,2]
+lny.eval <- np.plot.out$r1$eval[,1]
+
+## loess estimation and data for plotting
+# putting into ggplot is a bit messy here
+lnydf <- data.frame(lny = seq(2.5,13.5,0.25))
+lnminq.lo <- loess(lnminq ~ lny, span = 0.4, data = main.df)
+predict.lo <- predict(lnminq.lo, lnydf, se = TRUE)
+lo.lny.eval <- lnydf$lny
+lo.lnminq.eval <- predict.lo$fit
+lo.lower.ci <- predict.lo$fit - 1.96*predict.lo$se.fit
+lo.upper.ci <- predict.lo$fit + 1.96*predict.lo$se.fit
+
+lnydata <- main.df$lny
+lnminqdata <- main.df$lnminq
+
+plot(lnydata, lnminqdata, type = "p", col = "bisque",
+     xlab = "Log of Monthly Income (lny)",
+     ylab = "Log of Minimum Income (lnminq)")
+lines(lo.lny.eval, lo.lnminq.eval, lwd = 2, lty = 1, col ="red")
+lines(lo.lny.eval, lo.lower.ci, lwd = 1, lty = 2, col ="red")
+lines(lo.lny.eval, lo.upper.ci, lwd = 1, lty = 2, col ="red")
+lines(lny.eval, lnminq.eval, lwd = 2, lty = 1, col ="blue")
+lines(lny.eval, lower.ci, lwd = 1, lty = 2, col ="blue")
+lines(lny.eval, upper.ci, lwd = 1, lty = 2, col ="blue")
+legend("bottomright",
+       lty = c(1,1),
+       col = c("red","blue"),
+       c("Loess Fit and CI",
+         "Conditional NP Fit and CI"))
+
+#main.df %>% ggplot(aes(x = lny, y = lnminq)) +
+#  geom_point(alpha = 0.4, color = "bisque", shape = 1) +  
   #scale_shape(solid = FALSE) + 
-  geom_smooth(method = "loess", color = "red", se = TRUE) +  
-  labs(
+#  geom_smooth(method = "loess", color = "red", se = TRUE) +  
+#  labs(
    # title = "Loess regressiob plot of lo vs. lny",
-    x = "Log of Monthly Income (lny)",
-    y = "Log of Minimum Income (lnminq)"
-  ) +
-  theme_minimal()  # Use a clean theme
+#    x = "Log of Monthly Income (lny)",
+#    y = "Log of Minimum Income (lnminq)"
+#  ) +
+#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lnminq.eval),colour = "blue",
+#            linetype="solid", linewidth = 2) +
+#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lower.ci),colour = "blue",
+#            linetype="dashed", linewidth = 1) +
+#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=upper.ci),colour = "blue",
+#            linetype="dashed", linewidth = 1) +
+#  scale_color_manual(values = c("Lowess" = "red","Conditional NP" = "blue"),
+#                     name = "NP Regression Type") +
+#  theme_minimal()  # Use a clean theme
+
+
+
 ```
 
 
@@ -659,30 +722,80 @@ kable(bandwidths, format = "latex", align='rrr',
 
 ```
 
-To offer additional insight, we illustrate the nonparametric average effects for both adults and children in the following Figures \@ref(fig:np-bw-kids-adults-plot-1) and \@ref(fig:np-bw-kids-adults-plot-2)
-
-```{r np-bw-kids-adults-plot, dependson="lcs-np-data",fig.cap = "Nonparametric regression plot of the gradient between adults and children in the household and reported minimum income (logs)", fig.subcap = c("Gradient for adults", "Gradient for children"), out.width = c("48%","48%")}
-
-kids.plot.out <- plot(bw2,
-                 perspective=FALSE,
-                 plot.errors.method="bootstrap",
-                 plot.errors.boot.num=399,
-                 plot.behavior="data",
-                 plot.bxp = TRUE,
-                 gradients=TRUE)
+To offer additional insight, we illustrate the nonparametric average effects for both adults and children in the following Figures \@ref(fig:np-adults-plot) and \@ref(fig:np-kids-plot). The figures include the estimated gradient, when treating children and adults as continuous variables in the nonparametric regression, as well.^[Confidence intervals for the 'linear' nonparametric gradients are not included, as they are much wider than is presented for the categorically evaluated gradients.] Although it is important to remember that a nonparametric model is fully nonlinear, such that interaction effects can exist, the illustrations suggest that there is no statistically significant gradient between household size and the household's reported minimum income.^[The illustrations presented are based on the median of the log of household income, as well as the mode of the remaining categorical variables in the regression. Thus, the illustrations are for the most commonly observed households in the data. In this case, it is an African/Black male-headed household from urban Kwazulu-Natal, whose head is married and completed less than primary school.]
 
 
-bxp(kids.plot.out$rg3$bxp,boxfill = "lightblue",
-    xlab = "Number of adults in household",
-    ylab = "Estimated gradient of reported log minimum income (relative to one adult)")
 
-bxp(kids.plot.out$rg4$bxp,boxfill = "lightgreen",
-    xlab = "Number of children in household",
-    ylab = "Estimated gradient of reported log minimum income (relative to zero children)")
+```{r np-plot-data, dependson="lcs-np-data"}
+
+categorical.plot.out <- plot(bw2,
+                             perspective=FALSE,
+                             plot.errors.method="bootstrap",
+                             plot.errors.boot.num=399,
+                             plot.errors.quantiles = c(0.05,0.95),
+                             plot.behavior="data",
+                             plot.bxp = TRUE,
+                             gradients=TRUE)
+
+continuous.plot.out <- plot(bw1,
+                            perspective=FALSE,
+                            plot.errors.method="bootstrap",
+                            plot.errors.boot.num=399,
+                            plot.errors.quantiles = c(0.05,0.95),
+                            plot.behavior="data",
+                            gradients=TRUE)
+
+
 ```
 
 
-\newpage
+```{r np-adults-plot, dependson="np-plot-data",fig.cap = "Nonparametric regression plot of the gradient between adults and in the household and reported minimum income (logs), relative to only one adult"}
+
+adult.grad.eval <- gradients(continuous.plot.out$rg3)
+adult.se <- gradients(continuous.plot.out$rg3, errors = TRUE)
+adult.lower.ci <- adult.grad.eval + adult.se[,1]
+adult.upper.ci <- adult.grad.eval + adult.se[,2]
+adult.eval <- continuous.plot.out$rg3$eval[,3]
+
+bxp(categorical.plot.out$rg3$bxp,boxfill = "bisque",
+    xlab = "Number of adults in household",
+    ylab = "Log minimum income gradient")
+lines(adult.eval, adult.grad.eval, col = "blue", lty = 1)
+#lines(adult.eval, adult.lower.ci, col = "blue",lty=3)
+#lines(adult.eval, adult.upper.ci, col = "blue",lty=3)
+
+
+```
+
+
+
+```{r np-kids-plot, dependson="np-plot-data",fig.cap = "Nonparametric regression plot of the gradient between children and in the household and reported minimum income (logs), relative to only one adult"}
+
+kid.grad.eval <- gradients(continuous.plot.out$rg4)
+kid.se <- gradients(continuous.plot.out$rg4, errors = TRUE)
+kid.lower.ci <- kid.grad.eval + kid.se[,1]
+kid.upper.ci <- kid.grad.eval + kid.se[,2]
+# below, seems a random addition, but plot does not come out correctly
+kid.eval <- continuous.plot.out$rg4$eval[,4] + 1 
+
+
+
+bxp(categorical.plot.out$rg4$bxp,boxfill = "bisque",
+    xlab = "Number of children in household",
+    ylab = "Log minimum income gradient",
+    # found this a bit through trial and error, 
+    # should have looked for min/max values through
+    # bxp, ci and other data, but still not efficient.
+    ylim = c(-0.04,0.01))
+lines(kid.eval, kid.grad.eval, col = "blue", lty = 1)
+# The confidence intervals are rather bigger for continous than categorical
+#lines(kid.eval,kid.lower.ci, col = "blue",lty=3)
+#lines(kid.eval,kid.upper.ci, col = "blue",lty=3)
+
+```
+
+
+
 ## Linear parametric subjective poverty lines
 
 Estimation results from linear model suggest that there is no kid "effect"...However, there are very big education effects. So, I am going to try to match the expenditure with the minq and see if this looks any different?
