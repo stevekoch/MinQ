@@ -6,13 +6,13 @@ options(np.messages=TRUE,
 
 # not working - sometimes, there is a google drive issue...
 # This data developed in the main paper draft... 
-load("data/201415/LCS2014df.RData")
+load("data/LCS2014.RData")
 
 
 ## step 0 - Any correlation issues?
 df <- LCS2014 %>%
-  select(lnx, lny, adults, kids, hhh.male, marital, ethnic, province, settle, education,
-         lnminq)
+  dplyr::select(lnx, lny, adults, kids, hhh.male, marital, ethnic, province, settle, education,
+         lnminq, age)
 
 ## Vectorise for np package?
 ## Here we are using factors and ordered
@@ -21,6 +21,7 @@ df$kids1 <- factor(df$kids)
 df$adults1 <- factor(df$adults)
 df$kids2 <- ordered(df$kids)
 df$adults2 <- ordered(df$adults)
+df$age <- as.vector(df$age)
 
 
 # Subsampling to see that the program runs
