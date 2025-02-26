@@ -627,6 +627,8 @@ np.plot.out <- plot(bw1,
 
 I do need to build a table, but that should be quick.
 
+
+
 ```{r loess-plot, dependson="lcs; np-plot-lyn-lnminq", fig.cap = "Nonparametric regression plot and data points: log reported minimum income against log reported income.",}
 
 # np lot data and fit values for plots
@@ -748,6 +750,7 @@ continuous.plot.out <- plot(bw1,
 
 ```
 
+## Adult and child effects
 
 ```{r np-adults-plot, dependson="np-plot-data",fig.cap = "Nonparametric regression plot of the gradient between adults and in the household and reported minimum income (logs), relative to only one adult"}
 
@@ -794,6 +797,96 @@ lines(kid.eval, kid.grad.eval, col = "blue", lty = 1)
 
 ```
 
+```{r linear-models, dependson="lcs"}
+
+base.data <- main.df %>%
+  mutate(ao = as.numeric(ao),
+         ko = as.numeric(ko))
+
+lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male + 
+                      ethnic + province + settle + marital + education,
+                    data=base.data)
+lineary_smooth_tab <- ctab(lineary_smooth)[5:8,c(1,3)]
+
+lineary_dummies <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
+                       a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+                       ethnic + province + settle + marital + education,
+                     data=base.data)
+lineary_dummies_tab <- ctab(lineary_dummies)[5:22,3]
+
+linearx_smooth <- lm(lnminq ~ lnx + ao + ko +  age + age.sq + hhh.male + 
+                      ethnic + province + settle + marital + education,
+                    data=base.data)
+linearx_smooth_tab <- ctab(linearx_smooth)[5:8,3]
+
+linearx_dummies <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                       a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+                       ethnic + province + settle + marital + education,
+                     data=base.data)
+linearx_dummies_tab <- ctab(linearx_dummies)[5:22,3]
+
+
+quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
+                         ethnic + province + settle + marital + education,
+                       data=base.data)
+quadraticy_smooth_tab <- ctab(quadraticy_smooth)[7:10,3] 
+
+quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
+                          a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+                          ethnic + province + settle + marital + education,
+                        data=base.data)
+quadraticy_dummies_tab <- ctab(quadraticy_dummies)[7:24,3]
+
+quadraticx_smooth <- lm(lnminq ~ lnx + lnx.sq + ao + ko +  age + age.sq + hhh.male + 
+                         ethnic + province + settle + marital + education,
+                       data=base.data)
+quadraticx_smooth_tab <- ctab(quadraticx_smooth)[7:10,3]
+
+quadraticx_dummies <- lm(lnminq ~ lnx + lnx.sq + k1 + k2 + k3 + k4 + 
+                          a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+                          ethnic + province + settle + marital + education,
+                        data=base.data)
+quadraticx_dummies_tab <- ctab(quadraticx_dummies)[7:24,3]
+```
+
+```{r linear-kids-adults, dependson="linear-models", results = "asis"}
+
+# Will build simple tables for the adults and kids
+# components of the models
+# Goal is just to show if this really matters..
+# Effect sizes...
+smooth.tab.names <- c("Adults in hh", "", "Children in hh","")
+smooth.tab <- tibble(rnames = smooth.tab.names, ly = lineary_smooth_tab$results, 
+                     lx = linearx_smooth_tab$results, 
+                     qy = quadraticy_smooth_tab$results, 
+                     qx = quadraticx_smooth_tab$results)
+
+dummies.tab.names <- c("One child","","Two children","","Three children","","Four children","",
+                       "Two adults","", "Three adults","","Four adults","",
+                       "Five adults","","Six adults","")
+dummies.tab <- tibble(rnames = dummies.tab.names, ly = lineary_dummies_tab$results, 
+                      lx = linearx_dummies_tab$results, 
+                      qy = quadraticy_dummies_tab$results, 
+                      qx = quadraticx_dummies_tab$results)
+
+
+results.tab <- rbind(smooth.tab, dummies.tab)
+
+kable(results.tab, format = "latex", align='lrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Effect size estimates for adults and children on (log) reported minimum household income",
+      col.names=c("Composition","Log income","Log expenditure","Log income","Log expenditure")) %>%
+  add_header_above(c(" "=1, "Linear" = 2, "Quadratic" = 2)) %>%
+  pack_rows("Adults and children as continuous variables", 1, 4) %>%
+  row_spec(4, hline_after = TRUE) %>%
+  pack_rows("Adults and children as categorical variables", 5, 22) %>%
+  row_spec(22, hline_after = TRUE) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated coefficeients across household types. Reported estimates limited to children and adults in the household. Models included either the log of household income or expenditure (Linear) as well as the matching square (Quadratic), as well as household head age, gender, population group, and education level. Models also included province and settlement type fixed effects.", escape=FALSE, general_title="",threeparttable=TRUE) 
+
+```
 
 
 ## Linear parametric subjective poverty lines
