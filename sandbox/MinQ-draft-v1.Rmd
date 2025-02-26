@@ -17,6 +17,7 @@ booktabs: yes
 header-includes:
     - \usepackage{setspace}\doublespacing
     - \usepackage{dcolumn}
+    - \usepackage{subcaption}
     - \pagenumbering{gobble}
 abstract: \singlespacing We consider minimum income questions to examine eq scales.
 ---
@@ -55,8 +56,8 @@ knitr::opts_chunk$set(cache=TRUE,
                       warning=FALSE,
                       #dev='tikz',
                       dev='pdf',
-                      out.width='60%',
-                      out.height='60%',
+                      out.width='80%',
+                      out.height='80%',
                       fig.align='center')
 
 def.chunk.hook  <- knitr::knit_hooks$get("chunk")
@@ -363,7 +364,7 @@ LCS2014 <- person1 %>%
 
 # save a single data frame: LCS2014
 # This gets used by the NP files.
-#save(LCS2014, file="data/LCS2014df.Rdata")
+#save(LCS2014, file="../data/LCS2014df.Rdata")
 
 rm(person,household,total)
 
@@ -418,13 +419,13 @@ n1 <- n-n2
 
 ```{r lcs-np-data, dependson="lcs"}
 
-load("../data/np-minq-results.Rdata")
+load("../data/np-minq-results-main.Rdata")
 
 ## This should have been saved with the data, while running the np analysis.
 ## Unfortunately, it was not, so the code from the np fle is copied here
 ## df is only the data frame for the np analysis, nothing else!
 df <- LCS2014 %>%
-  select(lnx, lny, adults, kids, hhh.male, marital, ethnic, province, settle, education,
+  dplyr::select(lnx, lny, adults, kids, hhh.male, marital, ethnic, province, settle, education,
          lnminq)
 
 ## Vectorise for np package?
@@ -609,10 +610,11 @@ dfdiff <- data.matrix(sweep(dfalt,2,dfref))
 
 I do need to build a table, but that should be quick.
 
-```{r, dependson="lcs", fig.cap = "Loess regression plot: log reported minimum income against log reported income"}
+```{r loess-plot, dependson="lcs", fig.cap = "Loess regression plot and data points: log reported minimum income against log reported income"}
 
 main.df %>% ggplot(aes(x = lny, y = lnminq)) +
-  geom_point(alpha = 0.4, color = "blue") +  
+  geom_point(alpha = 0.4, color = "blue", shape = 1) +  
+  #scale_shape(solid = FALSE) + 
   geom_smooth(method = "loess", color = "red", se = TRUE) +  
   labs(
    # title = "Loess regressiob plot of lo vs. lny",
@@ -625,17 +627,28 @@ main.df %>% ggplot(aes(x = lny, y = lnminq)) +
 
 ## Nonparametric regression
 
+We begin with optimal bandwidths, which are presented in Table \@ref(tab:np-bw-table). The table presents bandwidths, based on the type of variable. In all models, monthly log income is treated continuously, while the education level of the head, gender, marital status and ethnicity are all treated as categorical factors, as are province of residence and household's urban status (settlement type). The difference across the models is the treatment of adults and kids. Under the continuous column, they are treated as continuous variables; they are treated as factors in the final two columns. Categorical, here, refers to treating the factors as unordered; they are treated as ordered - the most logical choice - in the final column.^[Why logical here?] 
+
+Although bandwidths are not average effects, they do offer insight into the underlying nonparametric relationship. In the case of continuous variables, the optimal bandwidth selection method uncovers irrelevant variables (Li, Racine and Hall?), and that irrelevance is implied by large bandwidths. For both adults and children, whose range is in the single digits, a bandwidth out to six digits far exceeds the underlying data range, and, therefore, is suggestive of statistical irrelevance. In the case of categorical variables, bandwidths are more intuitively compared to category proportions. In the case of a binary factor, for example, a bandwidth close to zero is suggestive of a relevant variable. Thus, both categorical models -- columns 2 and 3 -- suggest the opposite, bandwidths closer to one than zero: variables that are bordering on irrelevance. 
+
 ```{r np-bw-table, dependson="lcs-np-data", results="asis"}
 
+# pulling the bandwidths from the np analysis
 bandwidths <- cbind(bw1$bw, bw2$bw, bw3$bw) %>%
   round(digits = 5)
+
+# there are two that need to be separately rounded, 
+# because they are orders of magnitude bigger
+bandwidths[3:4,1] <- format(bandwidths[3:4,1],digits=1)
+
+# names of the matrix for the table...
 #colnames(bandwidths) <- c("Continuous","Categorical","Ordered")
 rownames(bandwidths) <- c("Log income","Education qualification","Adults in HH","Kids in HH",
                           "Male household head","Marital status","Ethnicity","Province","Settlement type")
 
 
 kable(bandwidths, format = "latex", align='rrr',
-      row.names = F,
+      row.names = T,
       booktabs=TRUE, escape=FALSE, longtable=FALSE,
       linesep="",
       caption="Nonparmetric optimal bandwidth estimates from regressions of (log) reported minimum income against household level variables.",
@@ -646,7 +659,30 @@ kable(bandwidths, format = "latex", align='rrr',
 
 ```
 
+To offer additional insight, we illustrate the nonparametric average effects for both adults and children in the following Figures \@ref(fig:np-bw-kids-adults-plot-1) and \@ref(fig:np-bw-kids-adults-plot-2)
 
+```{r np-bw-kids-adults-plot, dependson="lcs-np-data",fig.cap = "Nonparametric regression plot of the gradient between adults and children in the household and reported minimum income (logs)", fig.subcap = c("Gradient for adults", "Gradient for children"), out.width = c("48%","48%")}
+
+kids.plot.out <- plot(bw2,
+                 perspective=FALSE,
+                 plot.errors.method="bootstrap",
+                 plot.errors.boot.num=399,
+                 plot.behavior="data",
+                 plot.bxp = TRUE,
+                 gradients=TRUE)
+
+
+bxp(kids.plot.out$rg3$bxp,boxfill = "lightblue",
+    xlab = "Number of adults in household",
+    ylab = "Estimated gradient of reported log minimum income (relative to one adult)")
+
+bxp(kids.plot.out$rg4$bxp,boxfill = "lightgreen",
+    xlab = "Number of children in household",
+    ylab = "Estimated gradient of reported log minimum income (relative to zero children)")
+```
+
+
+\newpage
 ## Linear parametric subjective poverty lines
 
 Estimation results from linear model suggest that there is no kid "effect"...However, there are very big education effects. So, I am going to try to match the expenditure with the minq and see if this looks any different?
