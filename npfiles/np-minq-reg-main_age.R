@@ -5,7 +5,7 @@ options(np.messages=TRUE,
         scipen = 999)
 
 # not working - sometimes, there is a google drive issue...
-#setwd('/Volumes/GoogleDrive/My Drive/Inequality/EqScales-FoodSecure')
+# This data developed in the main paper draft... 
 load("data/201415/LCS2014df.RData")
 
 

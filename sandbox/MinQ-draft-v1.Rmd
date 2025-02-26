@@ -363,7 +363,7 @@ LCS2014 <- person1 %>%
 ## we lose 556 in total; the extra coming from limiting adults and kids in hh
   
 # save image
-#save.image("data/LCS2014.Rdata")
+#save(LCS2014, file = "../data/LCS2014.Rdata")
 
 # save a single data frame: LCS2014
 # This gets used by the NP files.
