@@ -18,6 +18,7 @@
 *.xml
 *data
 *LCSdata*
+*data*
 
 
 # User-specific files
