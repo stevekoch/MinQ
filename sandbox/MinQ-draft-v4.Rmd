@@ -1190,14 +1190,16 @@ zed <- akmat[,1:2] %>%
 
 ```{r spl-table, dependson="order-spl; lineary-spl-smooth; quady-spl-smooth; some-functions", results="asis", size = "footnotesize"}
 
-spl.tab <- cbind(spl.lin.yall.table, spl.quad.yall.table[,3], zed[,3:5])
+spl.tab <- cbind(spl.lin.yall.table, spl.quad.yall.table[,3], 
+                 round( zed[,3:5], digits=0))
 
-kable(zed, format = "latex", align='rrrrrrr',
+kable(spl.tab, format = "latex", align='ccccccc',
       row.names = F,
       booktabs=TRUE, escape=FALSE, longtable=TRUE,
       linesep="",
       caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
-      col.names=c("Adults","Kids", "Linear", "Qadratic","Food","and Clothing","and Housing")) %>%
+      col.names=c("Adults","Kids", "Linear", "Qadratic","Food Only",
+                  "+ Clothing","+ Housing")) %>%
   add_header_above(c(" "=2, "Minumum Income"=2, "Consumption Adequcy in"=3)) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
   footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
