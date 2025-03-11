@@ -1,0 +1,200 @@
+---
+title: "Nonparametric SPLs"
+author: "Steve"
+date: "2025-03-07"
+output: pdf_document
+---
+\setcounter{figure}{0}
+\renewcommand\thefigure{\Alph{section}.\arabic{figure}} 
+  
+\setcounter{table}{0}
+\renewcommand\thetable{\Alph{section}.\arabic{table}} 
+
+\setcounter{equation}{0}
+\renewcommand\theequation{\Alph{section}.\arabic{equation}}
+
+# Subjective poverty estimates from nonparametric models
+
+
+```{r np-spl-bwreg, dependson="lcs-np-data; lcs-sub"}
+
+# fit the model to the data
+fitted.bw1 <- fitted(npreg(bw1,
+                           newdata = df))
+
+fitted.bw2 <- fitted(npreg(bw2,
+                           newdata = df))
+
+fitted.bw3 <- fitted(npreg(bw3,
+                           newdata = df))
+
+# add the fit back to the data
+df <- df %>% 
+  add_column(lnminq.hat1 = fitted.bw1,
+             lnminq.hat2 = fitted.bw2,
+             lnminq.hat3 = fitted.bw3)
+
+# Need baseline values
+NP.spl.reg1 <- NULL
+NP.spl.reg2 <- NULL
+NP.spl.reg3 <- NULL
+
+
+for (j in 1:dim(akmat)[1]){
+  # run linear regressions for each data subset - household type
+  loop.data <- df %>%
+    filter((adults == akmat$ao[j]) & kids == akmat$ko[j])
+  
+  # force positive distance
+  gap.sq1 <- (loop.data$lnminq.hat1-loop.data$lny)^2
+  gap.sq2 <- (loop.data$lnminq.hat2-loop.data$lny)^2
+  gap.sq3 <- (loop.data$lnminq.hat3-loop.data$lny)^2
+    
+  # find location of "closest" fit
+  # this value is treated as the intersection
+  min.sq.row1 <- which(gap.sq1 == min(gap.sq1)) 
+  min.sq.row2 <- which(gap.sq2 == min(gap.sq2)) 
+  min.sq.row3 <- which(gap.sq3 == min(gap.sq3)) 
+
+    
+  # find the exponentiated value and bind
+  # for bw1
+  spl.val <- exp(loop.data[min.sq.row1,]$lny)
+  NP.spl.reg1 <- rbind(NP.spl.reg1,spl.val)
+  # for bw2
+  spl.val <- exp(loop.data[min.sq.row2,]$lny)
+  NP.spl.reg2 <- rbind(NP.spl.reg2,spl.val)
+  # for bw2
+  spl.val <- exp(loop.data[min.sq.row3,]$lny)
+  NP.spl.reg3 <- rbind(NP.spl.reg3,spl.val)
+}
+
+# I do not know this is necessary, but dropping rownames
+rownames(NP.spl.reg1) <- NULL
+rownames(NP.spl.reg2) <- NULL
+rownames(NP.spl.reg3) <- NULL
+
+```
+
+
+
+
+```{r NPspl-table, dependson="np-spl-bwreg; some-functions", results="asis", size = "footnotesize"}
+
+continuous <- NP.spl.reg1
+cat1 <- NP.spl.reg2
+cat2 <- NP.spl.reg3
+
+bkmat <- akmat[,1:2] %>%
+  rename(adults=ao,
+         kids=ko)
+
+spl.tab <- tibble(bkmat,continuous, cat1, cat2)
+
+
+kable(spl.tab, format = "latex", align='rrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of equivalence scales based on minimum household income, underpinned by nonparametric regression model",
+      col.names=c("Adults","Kids","Continuous","Factor","Ordered")) %>%
+  #add_header_above(c(" "=2, "Linear"=3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated subjective poverty line by household type, and bootstrapped standard error (not bootstrapped, yet). Estimates underpinned by nonparametric model of (log) minimum income required by the household against a range of controls including (log) income, household structure and location.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
+
+
+
+
+```{r np-spl-bw2, dependson="lcs-np-data; lcs-sub; np-spl-bw1"}
+
+# Need baseline values
+NP.spl2 <- NULL
+
+
+for (j in 1:dim(akmat)[1]){
+  
+  #create eval data using median values except for expenditure
+  suppressWarnings(
+    eval.df <- data.frame(
+      adults1 = d1$adults1[j],
+      kids1 = d1$kids1[j],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      #age = uocquantile(d1$age, 0.5),  #48
+      #age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lny = quantile(d1$lny, probs = (seq(0.001,0.999,0.001)))
+    )
+  )
+  
+  #fit to newdata
+  p1 <- fitted(npreg(bw2,
+                     newdata = eval.df))
+  
+  
+  # force positive distance
+  gap.sq <- (p1-eval.df$lny)^2
+  
+  # find location of "closest" fit
+  # this value is treated as the intersection
+  min.sq.row <- which(gap.sq == min(gap.sq)) 
+  
+  spl.val <- exp(p1[min.sq.row])
+  NP.spl2 <- rbind(NP.spl2,spl.val)
+}
+
+# just for looking at results?
+rownames(NP.spl2) <- NULL
+
+```
+
+
+```{r np-spl-bw3, dependson="lcs-np-data; lcs-sub; np-spl-bw1"}
+
+
+# Need baseline values
+NP.spl3 <- NULL
+
+for (j in 1:dim(akmat)[1]){
+  
+  #create eval data using median values except for expenditure
+  suppressWarnings(
+    eval.df <- data.frame(
+      adults2 = d1$adults2[j],
+      kids2 = d1$kids2[j],
+      hhh.male = uocquantile(d1$hhh.male,0.5), # female
+      ethnic = uocquantile(d1$ethnic,0.5), # african
+      province = uocquantile(d1$province,0.5),
+      settle = uocquantile(d1$settle,0.5), # traditional area
+      marital = uocquantile(d1$marital,0.5), # never married
+      education = uocquantile(d1$education,0.5), # nqf0 or primary (i think)
+      #age = uocquantile(d1$age, 0.5),  #48
+      #age.sq = uocquantile(d1$age.sq, 0.5), # 2304
+      lny = quantile(d1$lny, probs = (seq(0.001,0.999,0.001)))
+    )
+  )
+  
+  #fit to newdata
+  p1 <- fitted(npreg(bw3,
+                     newdata = eval.df))
+  
+  
+  # force positive distance
+  gap.sq <- (p1-eval.df$lny)^2
+  
+  # find location of "closest" fit
+  # this value is treated as the intersection
+  min.sq.row <- which(gap.sq == min(gap.sq)) 
+  
+  spl.val <- exp(p1[min.sq.row])
+  NP.spl3 <- rbind(NP.spl3,spl.val)
+}
+
+# just for looking at results?
+rownames(NP.spl3) <- NULL
+
+```
