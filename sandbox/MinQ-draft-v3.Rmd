@@ -1246,7 +1246,7 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 # Consumption adequacy
 
 
-```{r order-spl, dependson="lcs"}
+```{r order-spl, dependson="lcs; lcs-sub"}
 
 # dropping agw square due to collinearity, it would appear... 
 # the standard errors from the estimates, fail... 
@@ -1381,7 +1381,7 @@ kable(zed, format = "latex", align='rrrrr',
       linesep="",
       caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
       col.names=c("Adults","Kids","Food","and Clothing","and Housing")) %>%
-  add_header_above(c(" "=2, "Consumption Adequcy in"=3,)) %>%
+  add_header_above(c(" "=2, "Consumption Adequcy in"=3)) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
   footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
