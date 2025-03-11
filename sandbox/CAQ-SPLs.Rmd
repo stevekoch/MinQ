@@ -1,0 +1,581 @@
+---
+title: "Untitled"
+author: "Steve"
+date: "2025-03-11"
+output: html_document
+---
+
+
+
+```{r global_options, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(cache=TRUE,
+                      echo=FALSE,
+                      autodep=TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      #dev='tikz',
+                      dev='png',
+                      out.width='80%',
+                      out.height='35%',
+                      fig.align='center')
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+knitr::opts_knit$set(kable.force.latex = TRUE)
+
+library(tidyverse)
+library(haven)
+library(lubridate)
+library(kableExtra)
+library(np)    
+library(nnet)
+library(AER)
+library(ivreg)
+library(sandwich)
+library(REndo)
+library(qwraps2)
+  options(qwraps2_markup = "latex")
+library(stargazer)
+library(MASS)
+
+par(family = 'mono')
+
+options(scipen = 999,
+        np.messages=FALSE)
+
+set.seed(42)
+num.boot <- 1499 
+num.splits <- 5000
+q1 <- 0.025
+q2 <- 0.975
+nmulti <- 20
+
+### Working Directory
+#setwd('/Volumes/GoogleDrive/My Drive/Inequality/EqScalesFood')
+```
+
+```{r some-functions}
+### Some useful functions ###
+
+CM <- function(cm) {
+  factor.values.eval <- colnames(cm)
+  CM <- matrix(0,nrow(cm),nrow(cm))
+  rownames(CM) <- rownames(cm)
+  colnames(CM) <- rownames(cm)
+  for(i in 1:ncol(cm)) CM[,(1:nrow(cm))[rownames(cm)==factor.values.eval[i]]] <- cm[,i]
+  return(list(CM=CM,CCR=sum(diag(CM))/sum(CM)))
+}
+
+## this is a bit silly, but is driven by the difference in names between 
+## prediction and model... Could also change the model data naming...
+CM.logit <- function(cm) {
+  factor.values.eval <- rownames(cm)
+  CM <- matrix(0,nrow(cm),nrow(cm))
+  rownames(CM) <- rownames(cm)
+  colnames(CM) <- rownames(cm)
+  for(i in 1:ncol(cm)) CM[,(1:nrow(cm))[rownames(cm)==factor.values.eval[i]]] <- cm[,i]
+  return(list(CM=CM,CCR=sum(diag(CM))/sum(CM)))
+}
+
+stars <- function(x){
+  case_when(x >=0 & x <= 0.005 ~ "$^a$", 
+            x >=0 & x <= 0.01 ~ "$^b$",
+            x >=0 & x <= 0.05 ~ "$^c$",
+            x >=0 & x <= 0.1 ~ "$^d$",
+            x>0.1 ~ "")
+}
+
+ctab <- function(sm){
+  mm <- summary(sm,vcov=vcovHC(sm))
+  modsum <- mm$coefficients
+  n <- rownames(modsum)
+  ses <- paste0("(",formatC(modsum[,2],format="f",digits=3, drop0trailing = F),")")
+  z <- stars(modsum[,4])
+  betas <- paste0(formatC(modsum[,1],format="f",digits=4, drop0trailing = F),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+nlstab <- function(sm){
+  modsum <- sm$parameters
+  n <- rownames(modsum)
+  CIs <- paste0("(",format(modsum[,1]-1.96*modsum[,2],digits=1,nsmall=2)," -- ",
+                format(modsum[,1]+1.96*modsum[,2],digits=1,nsmall=2), ")")
+  betas <- format(modsum[,1],digits=1,nsmall=4)
+  t1 <- tibble(n=n,b=betas,s=CIs) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+ivctab <- function(sm){
+  mm <- summary(sm)
+  modsum <- mm$coefficients
+  n <- rownames(modsum)
+  ses <- paste0("(",formatC(modsum[,2],format="f",digits=3, drop0trailing = F),")")
+  z <- stars(modsum[,4])
+  betas <- paste0(formatC(modsum[,1],format="f",digits=4, drop0trailing = F),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+  modnost <- sm$diagnostics
+  nn <- rownames(modnost)
+  degfree1 <- as.character(modnost[,1])
+  z1 <- stars(modnost[,4])
+  ivstat <- paste0(formatC(modnost[,3],format="f",digits=3, drop0trailing = F),z1)
+  t2 <- tibble(n=nn,params=degfree1,results=ivstat)
+  t <- rbind(t1,t2)
+}
+
+sptab <- function(sm){
+  modsum <- sm
+  n <- rownames(modsum)
+  colnames(sm) <- c("betas","ses")
+  tt <- sm[,1]/sm[,2]
+  pp <- 2*pnorm(-abs(tt))
+  n <- rownames(modsum)
+  ses <- paste0("(",format(modsum[,2],digits=1,nsmall=3),")")
+  z <- stars(pp)
+  betas <- paste0(format(modsum[,1],digits=1,nsmall=4),z)
+  t1 <- tibble(n=n,b=betas,s=ses) %>%
+    pivot_longer(!n,names_to="params",values_to = "results")
+}
+
+estab <- function(sm){
+  sm.all <- sm
+  sm <- as.matrix(sm)
+  n <- paste0(sm[,1]," ",sm[,2])
+  ses <- paste0("(",formatC(as.numeric(sm[,4]),format="f",digits=0, drop0trailing = F),")")
+  #z <- stars(sm[,4]) - not the right function, and not going to include.
+  sm3.form <- formatC(as.numeric(sm[,3]),format="f",digits=0)
+  #betas <- paste0(sm3.form,z)
+  t1 <- tibble(n=n, b=sm3.form,s=ses) %>%
+    pivot_longer(!n,names_to="result-type",values_to = "results") %>%
+    separate(n, into =c("adults","kids"))
+  estab.out <- t1[,c(1,2,4)]
+}
+
+only_perc <- function(x,
+                   digits = getOption("qwraps2_frmt_digits", 2),
+                   na_rm = FALSE,
+                   show_denom = "ifNA",
+                   show_symbol = TRUE,
+                   markup = "latex") #getOption("qwraps2_markup", "latex")) 
+                   {
+  d <- sum(!is.na(x))
+  n <- sum(x, na.rm = na_rm)
+  p <- frmt(100*n/d, digits)
+
+  if (show_denom == "never") {
+    rtn <- paste0(p,"%")
+  } else {
+    if (show_denom =="always" | any(is.na(x))) {
+      rtn <- paste0(frmt(as.integer(n)), "/", frmt(as.integer(d)), " (", p, "%)")
+    } else {
+      rtn <- paste0(p,"%")
+    }
+  }
+
+  if (!show_symbol) {
+    rtn <- gsub("%", "", rtn)
+  }
+
+
+  if (markup == "latex") {
+    rtn <- gsub("%", "\\\\%", rtn)
+  }
+
+  return(rtn)
+}
+
+quadRoots <- function(a, b, c) {
+
+print(paste0("You have chosen the quadratic equation ", a, "x^2 + ", b, "x + ", c, "."))
+
+discriminant <- (b^2) - (4*a*c)
+
+  if(discriminant < 0) {  # if discriminant is less than zero i.e no real roots
+    return(paste0("This quadratic equation has no real numbered roots."))
+  }
+  else if(discriminant > 0) { # If discriminant is greater than 0 ie real roots
+    x_int_plus <- (-b + sqrt(discriminant)) / (2*a)
+    x_int_neg <- (-b - sqrt(discriminant)) / (2*a)
+
+    return(paste0("The two x-intercepts for the quadratic equation are ",
+                  format(round(x_int_plus, 5), nsmall = 5), " and ",
+                  format(round(x_int_neg, 5), nsmall = 5), "."))
+  }
+  else #discriminant = 0  i.e only one root 
+    x_int <- (-b) / (2*a)
+    return(paste0("The quadratic equation has only one root. This root is ",
+                  x_int))
+}
+```
+
+
+```{r lcs}
+
+# LCS data
+person <- read_dta(file = "../data/201415/lcs-2014-2015-persons-final-v1.dta")
+total <- read_dta(file = "../data/201415/lcs-2014-2015-total-v1.dta")
+household <- read_dta(file = "../data/201415/lcs-2014-2015-households-v1.dta")
+#household.assets <- read_dta(file = "data/lcs-2014-2015-household-assets-v1.dta")
+
+# hhsize, number of kids (age < 15) in each household
+person1 <- person %>%
+  group_by(UQNO) %>%
+  summarise(hhsize = n(), # household size by appearance times of each ID
+            kids = sum(Q14AGE < 15), # number of child (age<15)
+            adults = hhsize - kids
+            ) %>%
+  mutate(UQNO = as.character(UQNO))
+
+person2 <- person %>%
+  dplyr::select(UQNO, PERSONNO, Q12SEX, Q13POPGROUP, Q14AGE, Q17MARITAL, Q21HIGHLEVEL, 
+         province_code, SETTLEMENT_TYPE) %>%
+  filter(PERSONNO==1, 
+         Q17MARITAL != 9,
+         Q21HIGHLEVEL != 31,
+         Q21HIGHLEVEL != 32,
+         Q21HIGHLEVEL != 99) %>%  
+  transmute(UQNO = as.character(UQNO),
+            age = Q14AGE,
+            hhh.dummy = ifelse(Q12SEX==1,1,0),
+            hhh.male = as_factor(Q12SEX),
+            ethnic = as_factor(Q13POPGROUP),
+            ba = ifelse(Q13POPGROUP==1,1,0),
+            cl = ifelse(Q13POPGROUP==2,1,0),
+            as = ifelse(Q13POPGROUP==3,1,0),
+            wh = ifelse(Q13POPGROUP==4,1,0),
+            wc = ifelse(province_code==1,1,0),
+            ec = ifelse(province_code==2,1,0),
+            nc = ifelse(province_code==3,1,0),
+            fs = ifelse(province_code==4,1,0),
+            kz = ifelse(province_code==5,1,0),
+            nw = ifelse(province_code==6,1,0),
+            gp = ifelse(province_code==7,1,0),
+            mp = ifelse(province_code==8,1,0),
+            lp = ifelse(province_code==9,1,0),
+            province = as_factor(province_code),
+            urbfor = ifelse(SETTLEMENT_TYPE==1,1,0),
+            urbinf = ifelse(SETTLEMENT_TYPE==2,1,0),
+            tradit = ifelse(SETTLEMENT_TYPE==4,1,0),
+            rurfor = ifelse(SETTLEMENT_TYPE==5,1,0),
+            settle = factor(SETTLEMENT_TYPE, levels = c(1,2,4,5),
+                            labels=c("Urban Formal","Urban Informal",
+                                     "Traditional Area","Rural Formal")),
+            marital = as_factor(Q17MARITAL),
+            education = factor(Q21HIGHLEVEL, 
+                               levels = c(98,1:25,27,28:29,26,30),
+                               labels=c("none",rep("nqf0",9),"nqf1","nqf2",
+                                        "nqf3",rep("nqf4",2),
+                                       "nqf1","nqf2","nqf3",
+                                       rep("nqf5",3), rep("nqf4",2),"nqf5",
+                                       "nqf6",rep("nqf7",2),
+                                       rep("nqf8",2),rep("nqf9-10",2))),
+            Q21HIGHLEVEL) %>%
+  droplevels() 
+
+# household level variables
+house.df <- household %>%
+  dplyr::select(
+    UQNO, income_inkind, expenditure_inkind, SURVEYDATE, Q229NETINCOME, 
+    Q6105IMAGINE, Q116PRESENT, hholds_wgt, Q221AFOOD, Q221BHOUSING,
+    Q221CCLOTHING) %>%
+  filter(Q6105IMAGINE != 9, Q116PRESENT != 9, 
+         Q221AFOOD != 9, Q221BHOUSING != 9,
+         Q221CCLOTHING != 9) %>% ## loses 790 obs..
+  transmute(
+    UQNO = as.character(UQNO),
+    wt = hholds_wgt,
+    surveydate = dmy(SURVEYDATE),
+    surveymonth = month(surveydate),
+    surveyyear = year(surveydate),
+    x = as.numeric(expenditure_inkind), 
+    # the value of expenditures including in kind expenditure incurred by 
+    # households for 12 months inflated/deflated to April 2015 using CPI
+    x.month = x/12, #Monthly total expenditure
+    y = as.numeric(income_inkind),  
+    # 63 observations have 0 values... length(which(house.df$y==0))
+    # also deflated/inflated to April 2015
+    y.month = y/12,
+    lnx = log(x.month),
+    lny = log(y.month),
+    minq = Q229NETINCOME, 
+    # 466 zero values (after dropping the 493 above) ... length(which(house.df$minq == 0))
+    lnminq = log(minq),
+    ladder = Q6105IMAGINE,
+    wealth = as_factor(Q116PRESENT),
+    adequate = ordered(Q221AFOOD, levels = c(1,2,3),
+                      labels = c("Below","Adequate","Above")), ## Needed for qwraps2.
+    inadeq.food = 1*(Q221AFOOD == 1),
+    inadeq.house = 1*(Q221BHOUSING == 1),
+    inadeq.cloth = 1*(Q221CCLOTHING == 1),
+    inadeq.sum = as.ordered(inadeq.food + inadeq.house + inadeq.cloth),
+  ) %>%
+  filter(is.finite(lny),
+         is.finite(lnx),
+         is.finite(lnminq)) %>%  # Not sure this affects the final lcs data, though
+  droplevels()
+  
+
+
+#merge above dataframes to get a dataframe LCS2014
+LCS2014 <- person1 %>%
+  full_join(person2, by="UQNO") %>%
+  full_join(house.df, by="UQNO") %>%
+  drop_na() %>%
+  filter(adults > 0,
+         adults <= 6,
+         kids <= 4)
+## It appears that we lose 312 observations for missing values, 
+## we lose 556 in total; the extra coming from limiting adults and kids in hh
+  
+# save image
+#save(LCS2014, file = "../data/LCS2014.Rdata")
+
+# save a single data frame: LCS2014
+# This gets used by the NP files.
+#save(LCS2014, file="../data/LCS2014df.Rdata")
+
+rm(person,household,total)
+
+data.full <- LCS2014 %>%
+  mutate(ao = ordered(adults),
+         ko = ordered(kids),
+         k0 = 1*(kids==0),
+         k1 = 1*(kids==1),
+         k2 = 1*(kids==2),
+         k3 = 1*(kids==3),
+         k4 = 1*(kids==4),
+       #  k5 = 1*(kids==5),
+      #   k6 = 1*(kids==6),
+         a1 = 1*(adults==1),
+         a2 = 1*(adults==2),
+         a3 = 1*(adults==3),
+         a4 = 1*(adults==4),
+         a5 = 1*(adults==5),
+         a6 = 1*(adults==6),
+       #  a7 = 1*(adults==7),
+      #   a8 = 1*(adults==8),
+         lnx.sq = lnx^2,
+         lny.sq = lny^2,
+         age.sq = age^2)
+
+
+base.data <- data.full %>%
+  dplyr::select(UQNO,ko, ao, age, age.sq, hhh.male, 
+                k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6,
+                ethnic, province, settle, marital, education, 
+                lnx, lnx.sq, lny, lny.sq, minq, lnminq, adequate,
+                inadeq.sum) %>%
+  transmute(lnx, lnx.sq, lny, lny.sq, ko, ao,
+            k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6, minq, lnminq,
+            age = as.integer(age),
+            age.sq = as.integer(age.sq),
+            hhh.male = as.factor(hhh.male),
+            ethnic = as.factor(ethnic),
+            province = as.factor(province),
+            settle = as.factor(settle),
+            marital = as.factor(marital),
+            education = as.factor(education),
+            adequate, inadeq.sum) 
+
+main.df <- base.data
+## Some parameters
+n <- nrow(main.df)
+n2 <- 24
+n1 <- n-n2
+
+#save(main.df, file="data/main.Rdata")
+```
+
+# From consumption adequacy
+
+
+```{r ol-es-table-2, dependson="order-eq; order-eq-boot; order-endog-eq-boot", results="asis", size = "footnotesize"}
+
+os1 <- estab(os.food) %>% rename("food1"="results")
+os1b <- estab(os.food.endog) %>% rename("food2"="results")
+
+os2 <- estab(os.clothing) %>% rename("clothing1"="results")
+os2b <- estab(os.clothing.endog) %>% rename("clothing2"="results")
+
+os3 <- estab(os.housing) %>% rename("housing1"="results")
+os3b <- estab(os.housing.endog) %>% rename("housing2"="results")
+
+ol.table2 <- tibble(os1, os1b[,3], 
+                    os2[,3], os2b[,3],
+                    os3[,3], os3b[,3]
+                    )
+
+kable(ol.table2, format = "latex", align='cc|rr|rr|rr|',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of equivalence scales based on food clothing and housing adequacy by household type, underpinned by ordered logit model controlling for endogeneity",
+      col.names=c("Adults","Kids","Exogenous","Endogenous",
+                  "Exogenous","Endogenous",
+                  "Exogenous", "Endogenous")
+  ) %>%
+  add_header_above(c(" "=2, "Food Adequacy"=2, "Clothing Adequacy"=2, "Housing Adequacy"=2)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated equivalence scale by household type, and bootstrapped standard errors (399 replications). Estimates underpinned by ordered logit model either adjusted (Endogenous) for or not adjusted for (Exogenous) potential expenditure endogeneity and unobserved adequacy reference effects.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
+
+
+# What do I want to do with CAQ stuff?
+
+
+```{r order-exog, dependson="lcs"}
+
+# dropping agw square due to collinearity, it would appear... 
+# the standard errors from the estimates, fail... 
+
+base.data <- main.df %>%
+  mutate(adults = as.numeric(ao),
+         kids = as.numeric(ko))
+
+## Food Models and Predictions
+## dummies for kids/adults
+formula.food1 <- formula(inadeq.dsum ~ lny + k1 + k2 + k3 + k4 + 
+                           a2 + a3 + a4 + a5 + a6  + age + hhh.male + 
+                           ethnic + province + settle + marital + education + food.share)
+
+food.ol1 <- polr(formula.food1,
+                      data=base.data,
+                      Hess = TRUE)
+
+
+
+food.ol.sum1 <- summary(food.ol1)$coefficients[,1:2]
+
+## smooth adults and kids
+formula.food2 <- formula(inadeq.sum ~ lny + kids + adults  + age + hhh.male + 
+                           ethnic + province + settle + marital + education )
+
+food.ol2 <- polr(formula.food2,
+                      data=base.data,
+                      Hess = TRUE)
+
+##########################################
+## find min y... 
+## need some of the model coefficients
+## surely could do this more efficiently
+food.ol2.coef <- coefficients(summary(food.ol2))
+bcut <- food.ol2.coef["0|1",1]
+by <- food.ol2.coef["lny",1]
+bk <- food.ol2.coef["kids",1]
+ba <- food.ol2.coef["adults",1]
+
+## need a matrix to compute from
+zed <- akmat[,1:2] %>%
+  mutate(adults = as.numeric(ao),
+         kids = as.numeric(ko),
+         # this is the lny value that gets us past the cut
+         rhs = (1/by) * (bcut - ba * adults - bk * kids),
+         # then exponentiate
+         # this is really a food poverty line...
+         ymin.smooth = exp(rhs)) 
+
+
+
+
+########################################## DROPPING CLOTHING
+########################################## FOCUS ONLY ON FOOD
+## Clothing Models and Predictions
+#formula.clothing1 <- formula(clothing~ lnx + k1 + k2 + k3 + k4 +  
+#                             a2 + a3 + a4 + a5 + a6 + age + hhh.male + 
+#                             ethnic + province + settle + marital + 
+#                               education + clothing.share)
+
+#clothing.ol1 <- polr(formula.clothing1,
+#                      data=base.data,
+#                      Hess = TRUE)
+
+#cm.clothing.ol1 <- table(base.data$clothing,
+#                      predict(clothing.ol1, base.data, type="class"))
+
+#clothing.ol.sum1 <- summary(clothing.ol1)$coefficients[,1:2]
+
+################################### DROP HOUSING HERE
+################################### SHOW IN OTHER PAPER IT IS A MESS
+## Housing Models and Predictions
+#formula.housing1 <- formula(housing~ lnx + k1 + k2 + k3 + k4 + 
+#                             a2 + a3 + a4 + a5 + a6 + age + hhh.male + 
+#                             ethnic + province + settle + marital + 
+#education + housing.share)
+
+#housing.ol1 <- polr(formula.housing1,
+#                      data=base.data,
+#                      Hess = TRUE)
+
+#cm.housing.ol1 <- table(base.data$housing,
+#                      predict(housing.ol1, base.data, type="class"))
+
+#housing.ol.sum1 <- summary(housing.ol1)$coefficients[,1:2]
+
+
+```
+ 
+
+```{r order-eq, dependson="lcs;order-exog"}
+
+base.data <- main.df
+
+# pull coefficients
+# ordered logit is sort of like a regression: linear index...
+b <- coef(food.ol1)[1:10] # does not count non-income and non-adult/child vars.
+b1 <- -b[1]
+
+dfref <- cbind(k1 = 0, k2 = 0, k3 = 0, k4 = 0, 
+               a2 = 0, a3 = 0, a4 = 0, a5 = 0, a6 = 0)
+
+akmat <- base.data %>%
+  dplyr::select(ao,ko,
+                a1, a2, a3, a4, a5, a6, 
+                k0, k1, k2, k3, k4) %>%
+  unique() %>%
+  arrange(ko) %>%
+  group_by(ko) %>%
+  arrange(ao) %>%
+  ungroup()
+
+dfalt <- akmat %>%
+  dplyr::select(k1,k2,k3,k4,
+                a2,a3,a4,a5,a6) 
+
+dfdiff <- data.matrix(sweep(dfalt,2,dfref)) 
+
+E.base1 <-  exp( (dfdiff %*% b[-1]) * (1/b1) )
+
+### Bootstrapping - Not the cleanest, but works
+E.boot1 <- NULL
+E.boot2 <- NULL
+E.boot3 <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  ## food
+  food <- polr(formula.food1,
+                   data=dd,
+                   Hess = TRUE)
+  cc <- coef(food)[1:10]
+  cc1 <- - cc[1]
+  es.boot <-  exp( (dfdiff %*% cc[-1]) * (1/cc1) )
+  E.boot1 <- cbind(E.boot1,es.boot)
+}
+
+## Get Eq Scale Standard Deviations
+E.sd1 <- apply(E.boot1,1,sd)
+
+os.food <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(ES = round(E.base1,3), 
+             E.sd = round(E.sd1,3)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+

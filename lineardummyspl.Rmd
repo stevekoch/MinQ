@@ -1,0 +1,236 @@
+---
+title: "Linear Dummy SPLs"
+author: "Steve"
+date: "2025-03-11"
+output: html_document
+---
+
+
+```{r lineary-spl, dependson="lcs"}
+
+base.data <- main.df
+model <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.yall <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = as.integer(spl.base), 
+             spl.sd = as.integer(spl.sd)) 
+
+spl.linminq.yall.table <- spl.linminq.yall %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+
+```{r linearx-spl, dependson="lcs-sub"}
+
+base.data <- main.df
+model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+b <- coef(model)[1:11] # does not count non-income and non-adult/child vars.
+b1 <- b[3:11]
+denom <- 1-b[2]
+
+spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:11]
+  cc1 <- cc[3:11]
+  denomboot <- 1-cc[2]
+  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.linminq.xall <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = as.integer(spl.base), 
+             spl.sd = as.integer(spl.sd)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+
+```{r quady-spl, dependson="lcs-sub"}
+
+base.data <- main.df
+model <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+bcoef <- coef(model)[1:12] # does not count non-income and non-adult/child vars.
+bcoef1 <- bcoef[4:12]
+
+# This calculates for all household types at once... but no real roots?
+c <- (bcoef[1] + (dfdiff %*% bcoef1))
+b <- bcoef[2] - 1
+a <- bcoef[3]
+
+discriminant <- (b^2) - (4*a*c)
+
+# How to choose?
+root1 <- (-b + sqrt(discriminant))*(1/(2*a))
+root2 <- (-b - sqrt(discriminant))*(1/(2*a))
+
+spl.base <-  exp( root2 )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:12]
+  cc1 <- cc[4:12]
+  c <- (cc[1] + (dfdiff %*% cc1))
+  b <- cc[2] - 1
+  a <- cc[3]
+  discriminant <- (b^2) - (4*a*c)
+  root2 <- (-b - sqrt(discriminant))*(1/(2*a))
+  splboot <-  exp( root2 )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.qminq.yall <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = as.integer(spl.base), 
+             spl.sd = as.integer(spl.sd)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+
+```{r quadx-spl, dependson="lcs-sub"}
+
+base.data <- main.df
+model <- lm(lnminq ~ lnx + lnx.sq + k1 + k2 + k3 + k4 + 
+              a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
+              ethnic + province + settle + marital + education,
+            data=base.data)
+
+bcoef <- coef(model)[1:12] # does not count non-income and non-adult/child vars.
+bcoef1 <- bcoef[4:12]
+
+# This calculates for all household types at once... but no real roots?
+c <- (bcoef[1] + (dfdiff %*% bcoef1))
+b <- bcoef[2] - 1
+a <- bcoef[3]
+
+discriminant <- (b^2) - (4*a*c)
+
+# How to choose?
+root1 <- (-b + sqrt(discriminant))*(1/(2*a))
+root2 <- (-b - sqrt(discriminant))*(1/(2*a))
+
+spl.base <-  exp( root2 )
+
+### Bootstrapping - Not the cleanest, but works
+boot <- NULL
+for (i in 1:399){
+  ss <- sample(dim(base.data)[1],replace=T)
+  dd <- base.data[c(ss),]
+  lnmq.model <- lm(lnminq ~ lnx + lnx.sq + k1 + k2 + k3 + k4 + 
+                     a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male +
+                     ethnic + province + settle + marital + education,
+                   data=dd)
+  cc <- coef(lnmq.model)[1:12]
+  cc1 <- cc[4:12]
+  c <- (cc[1] + (dfdiff %*% cc1))
+  b <- cc[2] - 1
+  a <- cc[3]
+  discriminant <- (b^2) - (4*a*c)
+  # How to choose?
+  root2 <- (-b - sqrt(discriminant))*(1/(2*a))
+  splboot <-  exp( root2 )
+  boot <- cbind(boot,splboot)
+}
+
+## Get Eq Scale Standard Deviations
+spl.sd <- apply(boot,1,sd)
+
+spl.qminq.xall <- akmat %>%
+  dplyr::select(ao,ko) %>%
+  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  add_column(spl = as.integer(spl.base), 
+             spl.sd = as.integer(spl.sd)) %>%
+  dplyr::select(-c(ao,ko))
+
+```
+
+
+
+```{r spl-table-cetagory, dependson="lineary-spl; linearx-spl; quady-spl; quadx-spl; some-functions", results="asis", size = "footnotesize"}
+
+# income
+spl0 <- estab(spl.linminq.yall) %>% rename(yal=results)
+spl1 <- estab(spl.qminq.yall) %>% rename(yquad=results)
+
+# expenditure
+spl3 <- estab(spl.linminq.xall) %>% rename(xall=results)
+spl4 <- estab(spl.qminq.xall) %>% rename(xquad=results)
+# combine
+spl.tab <- tibble(spl0,spl1[,3],spl3[,3],spl4[,3])
+
+
+kable(spl.tab, format = "latex", align='rrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
+      col.names=c("Adults","Kids","Linear","Quadratic","Linear","Quadratic")) %>%
+  add_header_above(c(" "=2, "Household Income"=2, "Household Expenditure" = 2)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. Bootstrapped standard errors (399 replications) are reported in parenthesis. Estimates underpinned by linear parametric models of (log) minimum income income required by the household against a range of controls including reported household (log) income or expenditure (and the matching squared term, in the case of quadratic), household structure and location dummies.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
+
