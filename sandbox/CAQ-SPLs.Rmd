@@ -437,47 +437,70 @@ base.data <- main.df %>%
   mutate(adults = as.numeric(ao),
          kids = as.numeric(ko))
 
-## Food Models and Predictions
-## dummies for kids/adults
-formula.food1 <- formula(inadeq.dsum ~ lny + k1 + k2 + k3 + k4 + 
-                           a2 + a3 + a4 + a5 + a6  + age + hhh.male + 
+## Models and Predictions
+## only food
+formula.adeq <- formula(adequate ~ lny + kids + adults + age + hhh.male + 
                            ethnic + province + settle + marital + education + food.share)
 
-food.ol1 <- polr(formula.food1,
+adeq.ol <- polr(formula.adeq,
                       data=base.data,
                       Hess = TRUE)
 
-
-
-food.ol.sum1 <- summary(food.ol1)$coefficients[,1:2]
-
-## smooth adults and kids
-formula.food2 <- formula(inadeq.sum ~ lny + kids + adults  + age + hhh.male + 
+## food and clothing
+formula.fc <- formula(inadeq.fc ~ lny + kids + adults  + age + hhh.male + 
                            ethnic + province + settle + marital + education )
 
-food.ol2 <- polr(formula.food2,
+fc.ol <- polr(formula.fc,
+                      data=base.data,
+                      Hess = TRUE)
+
+## food, clothing and housing
+formula.sum <- formula(inadeq.sum ~ lny + kids + adults  + age + hhh.male + 
+                           ethnic + province + settle + marital + education )
+
+sum.ol <- polr(formula.sum,
                       data=base.data,
                       Hess = TRUE)
 
 ##########################################
-## find min y... 
+## find min y...
 ## need some of the model coefficients
 ## surely could do this more efficiently
-food.ol2.coef <- coefficients(summary(food.ol2))
-bcut <- food.ol2.coef["0|1",1]
-by <- food.ol2.coef["lny",1]
-bk <- food.ol2.coef["kids",1]
-ba <- food.ol2.coef["adults",1]
+
+## food coefficients
+coefadeq <- coefficients(summary(adeq.ol))
+bcutadeq <- coefadeq["Below|Adequate",1]
+byadeq <- coefadeq["lny",1]
+bkadeq <- coefadeq["kids",1]
+baadeq <- coefadeq["adults",1]
+
+## food and clothing coefficients
+coeffc <- coefficients(summary(fc.ol))
+bcutfc<- coeffc["0|1",1]
+byfc <- coeffc["lny",1]
+bkfc <- coeffc["kids",1]
+bafc <- coeffc["adults",1]
+
+## all coefficients
+coefsum <- coefficients(summary(sum.ol))
+bcutsum<- coefsum["Below|Adequate",1]
+bysum <- coefsum["lny",1]
+bksum <- coefsum["kids",1]
+basum <- coefsum["adults",1]
 
 ## need a matrix to compute from
 zed <- akmat[,1:2] %>%
   mutate(adults = as.numeric(ao),
          kids = as.numeric(ko),
          # this is the lny value that gets us past the cut
-         rhs = (1/by) * (bcut - ba * adults - bk * kids),
+         rhsadeq = (1/byadeq) * (bcutadeq - baadeq * adults - bkadeq * kids),
+         rhsfc = (1/byfc) * (bcutfc - bafc * adults - bkfc * kids),
+         rhssum = (1/bysum) * (bcutsum - basum * adults - bksum * kids),
          # then exponentiate
          # this is really a food poverty line...
-         ymin.smooth = exp(rhs)) 
+         ymin.adeq = exp(rhsadeq),
+         ymin.fc = exp(rhsfc),
+         ymin.sum = exp(rhssum)) 
 
 
 

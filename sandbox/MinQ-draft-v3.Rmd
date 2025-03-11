@@ -1,6 +1,6 @@
 ---
-title: "Subjective poverty lines:"
-subtitle: "Estimates from reported minimum income"
+title: "Subjective poverty lines"
+subtitle: "MINQ and CAQ?"
 author: 
   - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
 thanks: The author would like to thank someone for their comments and suggestions. Any remaining issues rest with the author.
@@ -351,10 +351,11 @@ house.df <- household %>%
     ladder = Q6105IMAGINE,
     wealth = as_factor(Q116PRESENT),
     adequate = ordered(Q221AFOOD, levels = c(1,2,3),
-                      labels = c("Below","Adequate","Above")), ## Needed for qwraps2.
+                      labels = c("Below","Adequate","Above")),
     inadeq.food = 1*(Q221AFOOD == 1),
     inadeq.house = 1*(Q221BHOUSING == 1),
     inadeq.cloth = 1*(Q221CCLOTHING == 1),
+    inadeq.fc = as.ordered(inadeq.food + inadeq.cloth),
     inadeq.sum = as.ordered(inadeq.food + inadeq.house + inadeq.cloth),
   ) %>%
   filter(is.finite(lny),
@@ -412,7 +413,7 @@ base.data <- data.full %>%
                 k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6,
                 ethnic, province, settle, marital, education, 
                 lnx, lnx.sq, lny, lny.sq, minq, lnminq, adequate,
-                inadeq.sum) %>%
+                inadeq.fc, inadeq.sum) %>%
   transmute(lnx, lnx.sq, lny, lny.sq, ko, ao,
             k0,k1,k2,k3,k4,a1,a2,a3,a4,a5,a6, minq, lnminq,
             age = as.integer(age),
@@ -423,7 +424,7 @@ base.data <- data.full %>%
             settle = as.factor(settle),
             marital = as.factor(marital),
             education = as.factor(education),
-            adequate, inadeq.sum) 
+            adequate, inadeq.fc, inadeq.sum) 
 
 main.df <- base.data
 ## Some parameters
@@ -1242,7 +1243,86 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 
 ```
 
+# Consumption adequacy
 
+
+```{r order-spl, dependson="lcs"}
+
+# dropping agw square due to collinearity, it would appear... 
+# the standard errors from the estimates, fail... 
+
+base.data <- main.df %>%
+  mutate(adults = as.numeric(ao),
+         kids = as.numeric(ko))
+
+## Models and Predictions
+## only food
+formula.adeq <- formula(adequate ~ lny + kids + adults + age + hhh.male + 
+                           ethnic + province + settle + marital + education)
+
+adeq.ol <- polr(formula.adeq,
+                      data=base.data,
+                      Hess = TRUE)
+
+## food and clothing
+formula.fc <- formula(inadeq.fc ~ lny + kids + adults  + age + hhh.male + 
+                           ethnic + province + settle + marital + education )
+
+fc.ol <- polr(formula.fc,
+                      data=base.data,
+                      Hess = TRUE)
+
+## food, clothing and housing
+formula.sum <- formula(inadeq.sum ~ lny + kids + adults  + age + hhh.male + 
+                           ethnic + province + settle + marital + education )
+
+sum.ol <- polr(formula.sum,
+                      data=base.data,
+                      Hess = TRUE)
+
+##########################################
+## find min y...
+## need some of the model coefficients
+## surely could do this more efficiently
+
+## food coefficients
+coefadeq <- coefficients(summary(adeq.ol))
+bcutadeq <- coefadeq["Below|Adequate",1]
+byadeq <- coefadeq["lny",1]
+bkadeq <- coefadeq["kids",1]
+baadeq <- coefadeq["adults",1]
+
+## food and clothing coefficients
+coeffc <- coefficients(summary(fc.ol))
+bcutfc<- coeffc["0|1",1]
+byfc <- coeffc["lny",1]
+bkfc <- coeffc["kids",1]
+bafc <- coeffc["adults",1]
+
+## all coefficients
+coefsum <- coefficients(summary(sum.ol))
+bcutsum<- coefsum["0|1",1]
+bysum <- coefsum["lny",1]
+bksum <- coefsum["kids",1]
+basum <- coefsum["adults",1]
+
+## need a matrix to compute from
+zed <- akmat[,1:2] %>%
+  mutate(adults = as.numeric(ao),
+         kids = as.numeric(ko),
+         # this is the lny value that gets us past the cut
+         rhsadeq = (1/byadeq) * (bcutadeq - baadeq * adults - bkadeq * kids),
+         rhsfc = (1/byfc) * (bcutfc - bafc * adults - bkfc * kids),
+         rhssum = (1/bysum) * (bcutsum - basum * adults - bksum * kids),
+         # then exponentiate
+         # this is really a food poverty line...
+         ymin.adeq = exp(rhsadeq),
+         ymin.fc = exp(rhsfc),
+         ymin.sum = exp(rhssum)) %>%
+  dplyr::select(adults,kids,ymin.adeq,ymin.fc,ymin.sum)
+
+
+```
 
 
 \newpage
@@ -1262,10 +1342,11 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 \setcounter{equation}{0}
 \renewcommand\theequation{\Alph{section}.\arabic{equation}}
 
-# Subjective poverty line estimates 
-
+# Subjective poverty line estimates from minimum income questions
 
 ```{r spl-table-smooth, dependson="lineary-spl-smooth; linearx-spl-smooth; quadx-spl-smooth; quady-spl-smooth; some-functions", results="asis", size = "footnotesize"}
+
+
 
 spl0 <- estab(spl.lin.yall.table) %>% rename(yall=results)
 spl1 <- estab(spl.quad.yall.table) %>% rename(yquad=results)
@@ -1285,7 +1366,22 @@ kable(spl.tab, format = "latex", align='rrrr',
       col.names=c("Adults","Kids","Linear","Quadratic","Linear","Quadratic")) %>%
   add_header_above(c(" "=2, "Household Income"=2, "Household Expenditure" = 2)) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. Bootstrapped standard errors (399 replications) are reported in parenthesis. Estimates underpinned by linear parametric models of (log) minimum income income required by the household against a range of controls including reported household (log) income or expenditure (and the matching squared term, in the case of quadratic), household structure and location dummies.", escape=FALSE, general_title="",threeparttable=TRUE) 
+  footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. Bootstrapped standard errors (399 replications) are reported in parenthesis. Estimates underpinned by linear parametric models of (log) minimum income income required by the household against a range of controls including reported household (log) income or expenditure (and the matching squared term, in the case of quadratic), household structure and location dummies. Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
 
 
+
+# Subjective poverty line estimates from consumption adequacy questions
+
+```{r order-spl-table, dependson="order-spl; some-functions", results="asis", size = "footnotesize"}
+
+kable(zed, format = "latex", align='rrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
+      col.names=c("Adults","Kids","Food","and Clothing","and Housing")) %>%
+  add_header_above(c(" "=2, "Consumption Adequcy in"=3,)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
+```
