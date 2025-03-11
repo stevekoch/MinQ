@@ -998,81 +998,13 @@ dfdiff <- akmat %>% dplyr::select(ao,ko) %>%
 
 spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
 
-### Bootstrapping - Not the cleanest, but works
-boot <- NULL
-for (i in 1:399){
-  ss <- sample(dim(base.data)[1],replace=T)
-  dd <- base.data[c(ss),]
-  lnmq.model <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male +
-                     ethnic + province + settle + marital + education,
-                   data=dd)
-  cc <- coef(lnmq.model)[1:4]
-  cc1 <- cc[3:4]
-  denomboot <- 1-cc[2]
-  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
-  boot <- cbind(boot,splboot)
-}
-
-## Get Eq Scale Standard Deviations
-spl.sd <- apply(boot,1,sd)
-
 spl.lin.yall <- akmat %>%
   dplyr::select(ao,ko) %>%
   mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
-  add_column(spl.linear = as.integer(spl.base), 
-             spl.sd = as.integer(spl.sd)) 
+  add_column(spl.linear = as.integer(spl.base)) 
 
 spl.lin.yall.table <- spl.lin.yall %>%
   rename("spl" = "spl.linear") %>%
-  dplyr::select(-c(ao,ko))
-
-```
-
-
-```{r linearx-spl-smooth, dependson="lcs-sub"}
-
-base.data <- main.df %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
-
-model <- lm(lnminq ~ lnx + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education,
-            data=base.data)
-
-b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
-b1 <- b[3:4]          # just the kids and adult bit
-denom <- 1-b[2]
-
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)) %>%
-  as.matrix()
-
-spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
-
-### Bootstrapping - Not the cleanest, but works
-boot <- NULL
-for (i in 1:399){
-  ss <- sample(dim(base.data)[1],replace=T)
-  dd <- base.data[c(ss),]
-  lnmq.model <- lm(lnminq ~ lnx + ao + ko +  age + age.sq + hhh.male +
-                     ethnic + province + settle + marital + education,
-                   data=dd)
-  cc <- coef(lnmq.model)[1:4]
-  cc1 <- cc[3:4]
-  denomboot <- 1-cc[2]
-  splboot <-  exp( (cc[1] + (dfdiff %*% cc1)) * (1/denom) )
-  boot <- cbind(boot,splboot)
-}
-
-## Get Eq Scale Standard Deviations
-spl.sd <- apply(boot,1,sd)
-
-spl.smoothminq.xall <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
-  add_column(spl = as.integer(spl.base), 
-             spl.sd = as.integer(spl.sd)) %>%
   dplyr::select(-c(ao,ko))
 
 ```
@@ -1111,34 +1043,10 @@ root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
 # do not understand why not working?
 spl.base <-  exp( root2 )
 
-
-### Bootstrapping - Not the cleanest, but works
-boot <- NULL
-for (i in 1:399){
-  ss <- sample(dim(base.data)[1],replace=T)
-  dd <- base.data[c(ss),]
-  lnmq.model <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male +
-                     ethnic + province + settle + marital + education,
-                   data=dd)
-  cc <- coef(lnmq.model)[1:5]
-  cc1 <- cc[4:5]
-  c <- (cc[1] + (dfdiff %*% cc1))
-  bb <- cc[2] - 1
-  a <- cc[3]
-  #discriminant <- (bb^2) - (4*a*c)
-  root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
-  splboot <-  exp( root2 )
-  boot <- cbind(boot,splboot)
-}
-
-## Get Eq Scale Standard Deviations
-spl.sd <- apply(boot,1,sd)
-
 spl.quad.yall <- akmat %>%
   dplyr::select(ao,ko) %>%
   mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
-  add_column(spl.quad = as.integer(spl.base), 
-             spl.sd = as.integer(spl.sd))
+  add_column(spl.quad = as.integer(spl.base))
 
 spl.quad.yall.table <- spl.quad.yall %>%
   rename("spl" = "spl.quad") %>%
@@ -1146,71 +1054,7 @@ spl.quad.yall.table <- spl.quad.yall %>%
 ```
 
 
-```{r quadx-spl-smooth, dependson="lcs-sub"}
-
-base.data <- main.df %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
-
-model <- lm(lnminq ~ lnx + lnx.sq + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education,
-            data=base.data)
-
-b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
-b1 <- b[4:5]          # just the kids and adult bit
-
-
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)) %>%
-  as.matrix()
-
-# This calculates for all household types at once... but no real roots?
-c <- (b[1] + (dfdiff %*% b1))
-bb <- b[2] - 1
-a <- b[3]
-
-discriminant <- (bb^2) - (4*a*c)
-
-# How to choose?
-root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
-root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
-
-spl.base <-  exp( root2 )
-
-### Bootstrapping - Not the cleanest, but works
-boot <- NULL
-for (i in 1:399){
-  ss <- sample(dim(base.data)[1],replace=T)
-  dd <- base.data[c(ss),]
-  lnmq.model <- lm(lnminq ~ lnx + lnx.sq + ao + ko +  age + age.sq + hhh.male +
-                     ethnic + province + settle + marital + education,
-                   data=dd)
-  cc <- coef(lnmq.model)[1:5]
-  cc1 <- cc[4:5]
-  c <- (cc[1] + (dfdiff %*% cc1))
-  bb <- cc[2] - 1
-  a <- cc[3]
-  #discriminant <- (bb^2) - (4*a*c)
-  root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
-  splboot <-  exp( root2 )
-  boot <- cbind(boot,splboot)
-}
-
-## Get Eq Scale Standard Deviations
-spl.sd <- apply(boot,1,sd)
-
-spl.smoothqminq.xall <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
-  add_column(spl = as.integer(spl.base), 
-             spl.sd = as.integer(spl.sd)) %>%
-  dplyr::select(-c(ao,ko))
-
-```
-
-
-```{r poor-data, dependson="lcs;lineary-spl-smooth; quady-spl-smooth", results="asis"}
+```{r poor-data, dependson="lcs; lineary-spl-smooth; quady-spl-smooth", results="asis"}
 
 # This builds out a simple table...
 # How do we want to use this?
@@ -1342,46 +1186,19 @@ zed <- akmat[,1:2] %>%
 \setcounter{equation}{0}
 \renewcommand\theequation{\Alph{section}.\arabic{equation}}
 
-# Subjective poverty line estimates from minimum income questions
-
-```{r spl-table-smooth, dependson="lineary-spl-smooth; linearx-spl-smooth; quadx-spl-smooth; quady-spl-smooth; some-functions", results="asis", size = "footnotesize"}
-
-
-
-spl0 <- estab(spl.lin.yall.table) %>% rename(yall=results)
-spl1 <- estab(spl.quad.yall.table) %>% rename(yquad=results)
-#spl2 <- estab(spl.linminq.yabove) %>% rename(yabove=results)
-spl3 <- estab(spl.smoothminq.xall) %>% rename(xall=results)
-spl4 <- estab(spl.smoothqminq.xall) %>% rename(xquad=results)
-#spl5 <- estab(spl.linminq.xabove) %>% rename(xabove=results)
-
-spl.tab <- tibble(spl0,spl1[,3],spl3[,3],spl4[,3])
-
-
-kable(spl.tab, format = "latex", align='rrrr',
-      row.names = F,
-      booktabs=TRUE, escape=FALSE, longtable=TRUE,
-      linesep="",
-      caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
-      col.names=c("Adults","Kids","Linear","Quadratic","Linear","Quadratic")) %>%
-  add_header_above(c(" "=2, "Household Income"=2, "Household Expenditure" = 2)) %>%
-  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. Bootstrapped standard errors (399 replications) are reported in parenthesis. Estimates underpinned by linear parametric models of (log) minimum income income required by the household against a range of controls including reported household (log) income or expenditure (and the matching squared term, in the case of quadratic), household structure and location dummies. Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
-```
-
-
-
 # Subjective poverty line estimates from consumption adequacy questions
 
-```{r order-spl-table, dependson="order-spl; some-functions", results="asis", size = "footnotesize"}
+```{r spl-table, dependson="order-spl; lineary-spl-smooth; quady-spl-smooth; some-functions", results="asis", size = "footnotesize"}
 
-kable(zed, format = "latex", align='rrrrr',
+spl.tab <- cbind(spl.lin.yall.table, spl.quad.yall.table[,3], zed[,3:5])
+
+kable(zed, format = "latex", align='rrrrrrr',
       row.names = F,
       booktabs=TRUE, escape=FALSE, longtable=TRUE,
       linesep="",
       caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model",
-      col.names=c("Adults","Kids","Food","and Clothing","and Housing")) %>%
-  add_header_above(c(" "=2, "Consumption Adequcy in"=3)) %>%
+      col.names=c("Adults","Kids", "Linear", "Qadratic","Food","and Clothing","and Housing")) %>%
+  add_header_above(c(" "=2, "Minumum Income"=2, "Consumption Adequcy in"=3)) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
   footnote(general = "Estimated poverty lines by household type (adults and kids), netting out affects related to location, and other household head controls. The columns are inclusive, such that the first is for food adequacy only, while the second is food and clothing, and the third is food, clothing and housing.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
