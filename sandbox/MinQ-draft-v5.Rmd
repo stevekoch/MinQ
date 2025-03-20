@@ -1,6 +1,6 @@
 ---
 title: "Subjective poverty lines"
-subtitle: "MINQ and CAQ?"
+subtitle: "MINQ"
 author: 
   - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
 thanks: The author would like to thank someone for their comments and suggestions. Any remaining issues rest with the author.
@@ -416,8 +416,8 @@ dfdiff <- data.matrix(sweep(dfalt,2,dfref))
 
 ```{r ghs}
 
-household <- read_dta(file = "../ghsdata/ghs2023/ghs-2023-hhold-v1.dta") 
-person <- read_dta(file = "../ghsdata/ghs2023/ghs-2023-person-v1.dta") 
+household <- read_dta(file = "../ghsdata/ghs-2023-hhold-v1.dta") 
+person <- read_dta(file = "../ghsdata/ghs-2023-person-v1.dta") 
 
 ghs.house <- household %>%
   dplyr::select(uqnr, prov, totmhinc, fin_reqinc, fin_compinc, fin_exp,
