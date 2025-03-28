@@ -1,0 +1,156 @@
+---
+title: "Subjective poverty lines"
+subtitle: "MINQ"
+author: 
+  - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
+thanks: The author would like to thank someone for their comments and suggestions. Any remaining issues rest with the author.
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  bookdown::pdf_document2: 
+    latex_engine: xelatex
+    dev: tikz
+    keep_tex: true
+    number_sections: true
+    toc: false
+  bookdown::gitbook: null
+booktabs: yes
+header-includes:
+    - \usepackage{setspace}\doublespacing
+#    - \usepackage{draftwatermark}
+    - \usepackage{dcolumn}
+    - \usepackage{subfig}
+    - \usepackage{threeparttablex}
+    - \usepackage{longtable}
+abstract: \singlespacing We consider minimum income questions to examine eq scales.
+---
+
+<!-- bibliography: refs.bib 
+     
+     My files needs to be edited, so I have dropped it for now.
+     Will put bac, when I am working on the paper.
+    
+-->
+
+
+```{r global_options, include=FALSE, cache=FALSE}
+
+# This is a basic set-up chunk that I use as a starting point
+
+knitr::opts_chunk$set(cache=TRUE,
+                      echo=FALSE,
+                      autodep=TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      #dev='tikz',
+                      dev='png',
+                      out.width='80%',
+                      out.height='35%',
+                      fig.align='center')
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+knitr::opts_knit$set(kable.force.latex = TRUE)
+
+library(tidyverse)
+library(haven)
+library(AER)
+library(ivreg)
+library(sandwich)
+library(stargazer)
+library(MASS)
+
+# I use this to avoid sci notation
+options(scipen = 999)
+
+# I use this in case there are simulations
+# Makes sure they are repeatabl
+set.seed(42)
+
+```
+
+
+
+
+```{r ghs}
+
+household <- read_dta(file = "../ghsdata/ghs-2023-hhold-v1.dta") 
+person <- read_dta(file = "../ghsdata/ghs-2023-person-v1.dta") 
+
+ghs.house <- household %>%
+  dplyr::select(uqnr, prov, totmhinc, fin_reqinc, fin_compinc, fin_exp,
+                hholdsz, chld17yr_hh, metro_code, rotation) %>%
+  filter(totmhinc != 9999999,
+         fin_reqinc != 9999999,
+         totmhinc > 0,
+         fin_exp !=14) %>%
+  transmute(uqnr = as.character(uqnr),
+            lny = log(totmhinc),
+            lny.sq = lny^2,
+            lnminq = log(fin_reqinc),
+            x = as_factor(fin_exp),
+            hhsize = hholdsz,
+            kids = chld17yr_hh,
+            adults = hhsize - kids,
+            # This is province and metro combined, 
+            # But, I will keep it..
+            province = as_factor(prov),
+            metro_code = as_factor(metro_code),
+            month = as_factor(rotation),
+            enough_inc = as.factor(as.numeric(fin_compinc <= 3))) %>%
+  droplevels()
+
+
+ghs.person <- person %>%
+  dplyr::select(uqnr, personnr, Sex, Population, age, hhc_marital, education,
+                geotype) %>%
+  filter(as.numeric(personnr)==1, 
+         hhc_marital != 9,
+         education != 28,
+         education != 29,
+         education != 99) %>%  
+  transmute(uqnr = as.character(uqnr),
+            age = age,
+            hhh.male = as_factor(Sex),
+            ethnic = as_factor(Population),
+            marital = as_factor(hhc_marital),
+            settle = factor(geotype, levels = c(1,2,3),
+                            labels = c("Urban","Traditional","Farms")),
+            education = factor(education, 
+                               levels = c(98,0:27),
+                               labels=c("none",rep("nqf0",9),"nqf1","nqf2",
+                                        "nqf3","nqf4", "nqf1","nqf2","nqf3",
+                                       rep("nqf5",3), rep("nqf4",2),"nqf5",
+                                       "nqf6", rep("nqf7",2), "nqf8", 
+                                       "nqf9", "nqf10"))) %>%
+  droplevels() 
+
+ghs2023 <- ghs.house %>%
+  full_join(ghs.person, by="uqnr") %>%
+  drop_na() %>%
+  # could make the number of adults and kids bigger?
+  filter(adults > 0, # there are 39 kid-headed households using my definition
+         adults <= 6,
+         kids <= 4) %>%
+  mutate(ao = ordered(adults),
+         ko = ordered(kids),
+         k0 = 1*(kids==0),
+         k1 = 1*(kids==1),
+         k2 = 1*(kids==2),
+         k3 = 1*(kids==3),
+         k4 = 1*(kids==4),
+         a1 = 1*(adults==1),
+         a2 = 1*(adults==2),
+         a3 = 1*(adults==3),
+         a4 = 1*(adults==4),
+         a5 = 1*(adults==5),
+         a6 = 1*(adults==6),
+         lny.sq = lny^2,
+         age.sq = age^2)  
+
+rm(household, person, ghs.person, ghs.house)
+```
+
