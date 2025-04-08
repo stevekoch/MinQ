@@ -6,11 +6,14 @@ options(np.messages=TRUE,
 
 # not working - sometimes, there is a google drive issue...
 # This data developed in the main paper draft... 
-load("ghs2023.RData")
+# Does not seem to load, but can worry about that later
+load(file = "/ghsdata/ghs2023.Rdata")
 
 
 ## step 0 - Any correlation issues?
-df <- ghs2023 
+df <- ghs2023 %>%
+  zap_labels() %>%
+  as.data.frame
 
 ## Vectorise for np package?
 ## Here we are using factors and ordered
@@ -31,7 +34,7 @@ bw.ghs <- npregbw(lnminq ~ lny + kids + adults + age + hhh.male +
                okertype="liracine",
                data = df,          #dfss
                bwmethod = "cv.ls", # cv.aic?
-               nmulti=20) ##20
+               nmulti=15) ##20
 
 sreg.ghs <- npreg(bw=bw.ghs,resid=TRUE, data=df, newdata=df)
 uhat.ghs <- residuals(sreg.ghs)

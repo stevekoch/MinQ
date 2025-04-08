@@ -491,6 +491,8 @@ ghs2023 <- ghs.house %>%
          age.sq = age^2)  
 
 rm(household, person, ghs.person, ghs.house)
+
+save(ghs2023, file = "../ghsdata/ghs2023.Rdata")
 ```
 
 
