@@ -951,12 +951,26 @@ doi = {}
   year = {2017}
 }
 
-@Manual{LCS2014,
-  AUTHOR =       {{Stats SA}},
-  TITLE =        {{Living Conditions Survey 2014-2015 [dataset]. Version 1.1}},
-  YEAR =         {2017},
-  organization =  {{Statistics South Africa (Stats SA)}},
-  note = {{Pretoria}: Statistics South Africa (Stats SA) [producer]. Cape Town: DataFirst [distributor], 2017}
+@dataset{ghs2023,
+  author       = {{Statistics South Africa}},
+  title        = {General Household Survey 2023 [dataset]},
+  year         = {2023},
+  version      = {1},
+  publisher    = {Statistics SA [producer]; DataFirst [distributor]},
+  address      = {Pretoria; Cape Town},
+  doi          = {10.25828/9khq-h317},
+  note         = {Accessed via DataFirst, 2024}
+}
+
+@dataset{lcs2014,
+  author       = {{Statistics South Africa}},
+  title        = {Living Conditions Survey 2014--2015 [dataset]},
+  year         = {2017},
+  version      = {1.1},
+  publisher    = {Statistics South Africa [producer]; DataFirst [distributor]},
+  address      = {Pretoria; Cape Town},
+  doi          = {10.25828/9229-xz60},
+  note         = {Accessed via DataFirst, 2024}
 }
 
 @Article{tidyverse,
@@ -1034,20 +1048,46 @@ doi = {}
 	Year = {2004}}
 
 @article{koch2022,
-  doi = {10.1111/saje.12326},
-	Author = {Koch, Steven F.},
-	Journal = {South African Journal of Economics},
-	Pages = {},
-	Title = {Equivalence scales in a developing country with extensive inequality},
-	Volume = {},
-	Number = {},
-	Year = {forthcoming}}
+author = {Koch, Steven F.},
+title = {Equivalence scales in a developing country with extensive inequality},
+journal = {South African Journal of Economics},
+volume = {90},
+number = {4},
+pages = {486-512},
+doi = {https://doi.org/10.1111/saje.12326},
+url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/saje.12326},
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/saje.12326},
+abstract = {Abstract This study estimates food budget share equations to calculate household equivalence scales that incorporate base-independence and address potential endogeneity, even though an instrument that satisfies the usual exclusion restriction may not be available. The application incorporates semi-parametric methods, control functions and heteroscedasticity instrumentation, allowing for heterogeneity in household preferences. The application is founded on the most recent income and expenditure data that are available for South Africa. We find that there is extensive heterogeneity and that endogeneity matters. Failing to account for endogeneity leads to overstated equivalence scales in nearly every circumstance. When we fit our calculated scales to a typical (A+κK)ψ equivalence structure via non-linear least squares, we find values of κ near unity and values of ψ mostly below 0.5. Thus, our analysis suggests that a square-root scale is more appropriate than other scales that have been used to examine poverty and inequality in South Africa.},
+year = {2022}
+}
 
-@misc{grodnersalas2017,
-	Author = {Andrew Grodner and Rafael Salas},
-	Howpublished = {Available at SSRN: https://ssrn.com/abstract=2909657 or http://dx.doi.org/10.2139/ssrn.2909657},
-	Title = {Grodner, Andrew and Salas, Rafael, Informational Content of Equivalence Scales Based on Minimum Needs Income},
-	Year = {2017}}
+@article{grodneretal2022,
+title = {A local equivalence scale and its information basis},
+journal = {Economics Letters},
+volume = {216},
+pages = {110572},
+year = {2022},
+issn = {0165-1765},
+doi = {https://doi.org/10.1016/j.econlet.2022.110572},
+url = {https://www.sciencedirect.com/science/article/pii/S0165176522001665},
+author = {Andrew Grodner and Casilda {Lasso de la Vega} and Rafael Salas and Lester A. Zeager},
+keywords = {Local equivalence scales, Information basis, Poverty comparisons},
+abstract = {We identify an information basis that is necessary and sufficient for a local equivalence scale, constructed using the indifference surface associated with a poverty level of well-being. It makes less restrictive assumptions about preferences for households with different characteristics than widely used approaches to this problem. Our approach is best suited for poverty comparisons, where calibration of means-tested transfers for different households is an important practical problem.}
+}
+
+@article{koch2023,
+  author       = {Koch, Steven F.},
+  title        = {Basic Needs (in)Security and Subjective Equivalence Scales},
+  journal      = {Social Indicators Research},
+  year         = {2023},
+  volume       = {169},
+  number       = {3},
+  pages        = {723--757},
+  doi          = {10.1007/s11205-023-03178-7},
+  url          = {https://doi.org/10.1007/s11205-023-03178-7},
+  issn         = {1573-0921},
+  abstract     = {Equivalence scales are policy parameters for inequality measurement, tax deductions and subsidies. Thus, their accuracy is relevant both for budgets and social cohesion; however, their measurement is subject to debate regarding the underlying measure of welfare. Self-assessed insecurities in terms of clothing, housing and food—or basic needs—imply that at least some households are at lower levels of welfare than those that are meeting their needs. We use this to determine the increase in total expenditure required to meet their needs, on average, and thus we are able to calculate the implied equivalence scales. We compare these subjective scales to ones that arise from objective measures, such as expenditure shares on the same items. Our subjective scales are more consistent and plausible across all goods, and are similar to those arising from food expenditure shares. While scales arising from either housing or clothing expenditure shares are neither similar to those arising from food shares or basic needs adequacy nor are they plausible, given the plausibility rules we apply. Furthermore, the subjective equivalence scales are smaller than those proposed in the OECD-modified scale.}
+}
 
 @article{kochracine2016,
 author = {Koch, Steven F. and Racine, Jeffrey S.},
@@ -1296,14 +1336,66 @@ Survey 2002-2010},
 	Title = {Die productions- und consumtionsverhaltnisse des Konigreichs Sachsen},
 	Year = {1857}}
 
-@misc{xu2005,
-	Author = {K Xu},
-	Date-Added = {2016-09-05 13:55:26 +0000},
-	Date-Modified = {2016-09-05 13:56:42 +0000},
-	Howpublished = {World Health Organization Discussion Paper 2-2005},
-	Title = {Distribution of health payments and catastrophic expenditures: Methodology},
-	Address = {Geneva, Switzerland},
-	Year = {2005}}
+@article{ravallion2014poor,
+  title={Poor, or just feeling poor? On using subjective data in measuring poverty},
+  author={Ravallion, Martin},
+  journal={Happiness and economic growth},
+  pages={140--178},
+  year={2014},
+  publisher={Oxford University Press Oxford}
+}
+
+@incollection{kingdon2013subjective,
+  title={Subjective well-being poverty vs. income poverty and capabilities poverty?},
+  author={Kingdon, Geeta Gandhi and Knight, John},
+  editor={David Hulme and John Toye}
+  booktitle={Understanding Poverty and Well-Being},
+  pages={115--140},
+  year={2013},
+  publisher={Routledge}
+}
+
+@article{klasen2000-riw,
+author = {Klasen, Stephen},
+title = {MEASURING POVERTY AND DEPRIVATION IN SOUTH AFRICA},
+journal = {Review of Income and Wealth},
+volume = {46},
+number = {1},
+pages = {33-58},
+doi = {https://doi.org/10.1111/j.1475-4991.2000.tb00390.x},
+url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1475-4991.2000.tb00390.x},
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/j.1475-4991.2000.tb00390.x},
+abstract = {This paper compares a standard expenditure-based poverty measure with a specifically created composite measure of deprivation using household survey data from South Africa. While there is a strong overall correlation between expenditures and levels of deprivation, the correlation is much weaker among the worst-off South Africans. In addition, the two measures differ considerably in the impact of race, headship, location (urban, rural), and household size on expenditure poverty versus deprivation. In general, the deprivation measure finds more Africans, rural dwellers, members of de facto female-headed households, and members of smaller households deprived than expenditure poor. Only the differences in the effect of household size on poverty are sensitive to assumptions about equivalence scales. As a result, the two measures diverge greatly in identifying the poorest and most deprived sections of the population, which may have considerable consequences for targeting.},
+year = {2000}
+}
+
+@article{https://doi.org/10.1111/1467-8268.12534,
+author = {Ekeocha, Davidmac O. and Iheonu, Chimere O.},
+title = {Household-level poverty, consumption poverty thresholds, income inequality and quality of lives in sub-Saharan Africa},
+journal = {African Development Review},
+volume = {33},
+number = {2},
+pages = {234-248},
+doi = {https://doi.org/10.1111/1467-8268.12534},
+url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/1467-8268.12534},
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/1467-8268.12534},
+abstract = {Abstract Poverty and income inequality are the twin greatest menaces in sub-Saharan Africa (SSA) with significant prevalence. This study decomposed their significance and probabilities in determining the quality of life (QOL) of individuals and households in SSA while controlling for household demographics. The household-level poverty (HLP) index and the indexes for QOL indicators were constructed from the national demographic and health surveys (DHS) for SSA countries. Data on consumption poverty thresholds and income inequality are from the global consumption and income project (GCIP) over 1985–2015. Findings reveal that, while the HLP index elicits more rural poverty across regions, consumption poverty thresholds are more urbanized and persistent across regions, except for Central Africa. The results for income inequality were found to be Gini −0.4396 and Atkinson index −0.4437, and more urbanized across regions. Furthermore, we found that SSA has made giant strides towards achieving sustainable development goals (SDGs) 6 and 3 but no information on the quality of healthcare. However, abysmal likelihoods exist for SDGs 4, 7 and 8 in SSA. Similarly, abysmal probabilities were also found for households’ access to adequate housing, a good environment and insurance coverage. Indeed, SDG-4 is more significant for achieving SDG-8. HLP stand as a significant bottleneck to achieving SDG-7 and adequate housing, while income inequality mars SDG-3 targets and sustainable environmental conditions in SSA. Policy options are discussed.},
+year = {2021}
+}
+
+@article{poselcasale2011,
+  author       = {Posel, Dorrit Ruth and Casale, Daniela Maria},
+  title        = {Relative Standing and Subjective Well-Being in South Africa: The Role of Perceptions, Expectations and Income Mobility},
+  journal      = {Social Indicators Research},
+  year         = {2011},
+  volume       = {104},
+  number       = {2},
+  pages        = {195--223},
+  doi          = {10.1007/s11205-010-9740-2},
+  url          = {https://doi.org/10.1007/s11205-010-9740-2},
+  issn         = {1573-0921},
+  abstract     = {Most studies that explore the impact of relative standing on subjective well-being use objective measures of the individual’s relative position, such as the mean income of the reference group or the individual’s ranking in the relevant income distribution. In this paper, using a new household survey from South Africa, we are able to derive subjective measures of relative standing, as information is collected on individuals’ perceptions of where they rank in the income distribution. We find considerable differences between objective and subjective measures of an individual’s relative ranking. Furthermore, our results suggest that an individual’s perceived relative status has a significantly larger effect on subjective well-being than objective measures of relative status based on reported income. We also examine the effects on subjective well-being of how individuals perceive their relative position in the income distribution to have changed since childhood, and what they expect their relative position to be in the future. We find that future upward mobility has a smaller effect than upward mobility compared to one’s past, suggesting that life satisfaction is influenced more by what has been achieved than by anticipated achievements.}
+}
 	
 @article{poselrogan2016,
 author = {Dorrit Posel and Michael Rogan},
@@ -1319,6 +1411,16 @@ URL = {https://doi.org/10.1080/19452829.2014.985198},
 eprint = {https://doi.org/10.1080/19452829.2014.985198}
 }
 
+@article{posel2014,
+  author = {D. Posel},
+  title = {Self-assessed well-being and economic rank in South Africa},
+  journal = {Development Southern Africa},
+  year = {2014},
+  doi = {10.1080/0376835X.2013.851020},
+  volume = {31},
+  pages = {51 - 64}
+}
+
 	
 @misc{poseletal2016wp,
 	Author = {Anonymous},
@@ -1328,6 +1430,48 @@ eprint = {https://doi.org/10.1080/19452829.2014.985198}
 	Title = {Inequality, race and equivalences scales in South Africa: A research note},
 	Address = {Johannesburg, South Africa},
 	Year = {2016}}
+	
+	@article{poselrogan2019,
+author = {Dorrit Posel and Michael Rogan},
+title = {Inequality, Social Comparisons and Income Aspirations: Evidence from a Highly Unequal Country},
+journal = {Journal of Human Development and Capabilities},
+volume = {20},
+number = {1},
+pages = {94--111},
+year = {2019},
+publisher = {Routledge},
+doi = {10.1080/19452829.2018.1547272},
+URL = { https://doi.org/10.1080/19452829.2018.1547272},
+eprint = {https://doi.org/10.1080/19452829.2018.1547272}
+}
+
+@article{doi:10.1086/716056,
+author = {Alloush, M. and Wu, S.},
+title = {Income Improves Subjective Well-Being: Evidence from South Africa},
+journal = {Economic Development and Cultural Change},
+volume = {71},
+number = {2},
+pages = {485-517},
+year = {2023},
+doi = {10.1086/716056},
+URL = {https://doi.org/10.1086/716056},
+eprint = {  https://doi.org/10.1086/716056},
+    abstract = { AbstractThis paper estimates the causal impact of income on life satisfaction for a broad sample of individuals in a developing country. Using a large and representative panel survey of South African residents, we find that receipt of the Older Person’s Grant—a means-tested cash transfer that is given to residents age 60 and older regardless of labor force status—increases several household-level measures of economic well-being, resulting in a large and significant increase in subjective well-being. Specifically, the average 20\% increase in per capita household income due to this grant increases life satisfaction by approximately 0.2 points, a large effect that extends to all members of the household. The discontinuity in the eligibility of the Older Person’s Grant provides a reliable causal estimate of the effect of income on life satisfaction that is larger than ordinary least squares estimates. }
+}
+
+@article{Biyase2018,
+  author       = {Biyase, Mduduzi and Zwane, Talent},
+  title        = {An Empirical Analysis of the Determinants of Poverty and Household Welfare in South Africa},
+  journal      = {The Journal of Developing Areas},
+  year         = {2018},
+  volume       = {52},
+  number       = {1},
+  pages        = {115--130},
+  publisher    = {Tennessee State University College of Business},
+  issn         = {1548-2278},
+  url          = {https://muse.jhu.edu/pub/51/article/676869},
+  note         = {Volume 52, Number 1, Winter 2018}
+}
 
 @article{robinson1988,
 	Author = {P M Robinson},

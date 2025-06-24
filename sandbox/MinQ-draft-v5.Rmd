@@ -260,8 +260,8 @@ discriminant <- (b^2) - (4*a*c)
 ```{r lcs}
 
 # LCS data
-person <- read_dta(file = "../data/lcs-2014-2015-persons-final-v1.dta")
-household <- read_dta(file = "../data/lcs-2014-2015-households-v1.dta")
+person <- read_dta(file = "../lcsdata/lcs-2014-2015-persons-final-v1.dta")
+household <- read_dta(file = "../lcsdata/lcs-2014-2015-households-v1.dta")
 
 # hhsize, number of kids (age < 17) in each household to match ghs data
 # Could probably pull this from household file, but already have the code
@@ -373,11 +373,11 @@ lcs2014 <- person1 %>%
 ## we lose 556 in total; the extra coming from limiting adults and kids in hh
   
 # save image
-save(lcs2014, file = "../data/lcs2014.Rdata")
+save(lcs2014, file = "../lcsdata/lcs2014.Rdata")
 
 # save a single data frame: LCS2014
 # This gets used by the NP files.
-#save(LCS2014, file="../data/LCS2014df.Rdata")
+#save(LCS2014, file="../lcsdata/LCS2014df.Rdata")
 
 rm(person, household, house.df, person1, person2)
 
@@ -416,8 +416,8 @@ dfdiff <- data.matrix(sweep(dfalt,2,dfref))
 
 ```{r ghs}
 
-household <- read_dta(file = "../ghs2023/ghs-2023-hhold-v1.dta") 
-person <- read_dta(file = "../ghs2023/ghs-2023-person-v1.dta") 
+household <- read_dta(file = "../ghsdata/ghs-2023-hhold-v1.dta") 
+person <- read_dta(file = "../ghsdata/ghs-2023-person-v1.dta") 
 
 ghs.house <- household %>%
   dplyr::select(uqnr, prov, totmhinc, fin_reqinc, fin_compinc, fin_exp,
@@ -492,7 +492,7 @@ ghs2023 <- ghs.house %>%
 
 rm(household, person, ghs.person, ghs.house)
 
-save(ghs2023, file = "../ghs2023/ghs2023.Rdata")
+save(ghs2023, file = "../ghsdata/ghs2023.Rdata")
 ```
 
 
@@ -509,6 +509,10 @@ load("../npfiles/ghs-np.Rdata")
 \pagenumbering{arabic}
 
 # Introduction??
+
+In this research, we estimate subjective poverty lines, based upon the minimum income question (MIQ), comparing them to National Treasury's objective money-metric poverty lines. We do so using two surveys from South Africa undertaken approximate 10 years apart [@lcs2014; @ghs2023] to see whether there have been any changes in subjective views of poverty over time, how much the subjective measures differ from the objective measures, and what those differences imply for poverty rates for different types of households. Our subjective poverty lines are underpinned by both linear parametric and nonparametric analyses that determine the intersection between actual and required income; see @Goedhartetal1977 or @ravallion2014poor for detials. Although their focus is an equivalence scales, @grodneretal2022, *offer useful information - like?* 
+
+On the continent, such research is rare, @posel2014 considers subjective well-being as do @poselrogan2016, although their research is based on ladder-type questions (where respondents rank their living conditions as being representative of very poor to wealthy or they rate their satisfaction with life from very dissatisfied to very satisfied). @poselrogan2019, as far as we know, are the only ones to use MIQ in their analysis, although it was used to consider income aspirations -- whether or not household minimum required income exceeded their current income -- and how their reported minimum income correlated with objective/ subjective measures of economic standing, as well as their community's local economic conditions. On the other hand, @koch2022 estimates equivalence scales either from expenditure shares, while @koch2023 estimates subjective equivalence scales from consumption adequacy questions. Although any of the preceding analyses could have developed subjective poverty lines, none of them did.
 
 Are there maybe two strands of the literature here? One of them on measuring minimum income and using that to get a subjective poverty measure and the other on the universal basic income grant? My basic results is that such a grant might be stupid. However, my analysis is based on income that people have. Thus, if there are people with a some grant income, that might be determining their minq value? 
 
