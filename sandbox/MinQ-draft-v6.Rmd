@@ -14,6 +14,7 @@ output:
     toc: false
   bookdown::gitbook: null
 booktabs: yes
+bibliography: refs.bib
 header-includes:
     - \usepackage{setspace}\doublespacing
 #    - \usepackage{draftwatermark}
@@ -74,7 +75,8 @@ library(tidyverse)
 library(haven)
 library(lubridate)
 library(kableExtra)
-library(np)    
+library(np)  
+library(quantreg)
 library(nnet)
 library(AER)
 library(ivreg)
@@ -84,6 +86,7 @@ library(qwraps2)
   options(qwraps2_markup = "latex")
 library(stargazer)
 library(MASS)
+library(broom)
 
 par(family = 'mono')
 
@@ -132,15 +135,26 @@ stars <- function(x){
             x>0.1 ~ "")
 }
 
-ctab <- function(sm){
-  mm <- summary(sm,vcov=vcovHC(sm))
+ctab <- function(sm, cluster = NULL) {
+  # If cluster variable is provided, use cluster-robust SEs
+  if (!is.null(cluster)) {
+    Vcov <- vcovCL(sm, cluster = cluster)
+  } else {
+    Vcov <- vcovHC(sm, type = "HC1") # default robust SE
+  }
+  
+  mm <- summary(sm, vcov = Vcov)
   modsum <- mm$coefficients
+  
   n <- rownames(modsum)
-  ses <- paste0("(",formatC(modsum[,2],format="f",digits=3, drop0trailing = F),")")
+  ses <- paste0("(", formatC(modsum[,2], format="f", digits=3, drop0trailing = FALSE), ")")
   z <- stars(modsum[,4])
-  betas <- paste0(formatC(modsum[,1],format="f",digits=4, drop0trailing = F),z)
-  t1 <- tibble(n=n,b=betas,s=ses) %>%
-    pivot_longer(!n,names_to="params",values_to = "results")
+  betas <- paste0(formatC(modsum[,1], format="f", digits=4, drop0trailing = FALSE), z)
+  
+  t1 <- tibble(n=n, b=betas, s=ses) %>%
+    pivot_longer(!n, names_to="params", values_to="results")
+  
+  return(t1)
 }
 
 nlstab <- function(sm){
@@ -585,6 +599,7 @@ Log transformations are important in trying to stabilize variance as well as mit
 The independent variable is household income in kind. This variable was likewise changed into a monthly value, which was then log transformed. This method is in line with research conducted by Ravallion & Lokshin (2002). They focused on income than expenditure to determine poverty levels. The decision to focus on income is based on the fact that it offers a perspective of a household’s situation by including both earned and in-kind sources of income. Furthermore, in assessing minimum requirements, income acts as a gauge of a household’s ability to attain a satisfactory quality of life as it represents the overall resources, at their disposal, for fulfilling crucial costs.
 
 Control variables are also added to the analysis. These control variables represent the different household demographics such as household size and location. This is done to assess the relationship that different household demographics have to the minimum income needs. These variables include:
+
 +   Household Composition: the proportion of adults and children living in the household. This is evaluated in two parts. The first one uses the household of one adult and no children as the basis for the analysis and looks at the number of adults and children as dummies. The second is where adults and children are viewed as a continuous variable. In the dummy variable approach, the number of children and adults within a household are capped 6 because the number of households with more than 6 children and 6 adults is relatively small within the dataset.
 +   Geographical Variables: The different provinces within the country are also assessed, with the baseline province being households in the Northwest, and 
 +   Location Variables: Settlement types are also factored in where the baseline are households in rural formal areas
@@ -623,19 +638,22 @@ Addressing these potential threats to identification is problematic. Identificat
 
 ## Subjective poverty lines
 
-Subjective poverty lines are described as fixed points [@Goedhartetal1977], where $\ln \underline{Y} = f(\ln \underline{Y}, D, Z)$. Under linearity, that fixed point occurs at the intercept, adjusted for the regression slope; it also differs depending on whether we assume constant marginal required income "costs" for children and adults or if we allow for a quadratic income relationship.^[With a quadratic term in the regression, the fixed point is determined by the solution to the quadratic formula, where we will limit our attention to real roots. -- we did not uncover any complex roots in our analysis.] Treating adults and kids as continuous variables, the subjective poverty line is defined by \eqref{eq:linear-spl}. 
+Subjective poverty lines are described as fixed points [@Goedhartetal1977], where $\ln \underline{Y} = f(\ln \underline{Y}, D, Z)$. Under linearity, that fixed point occurs at the intercept, adjusted for the regression slope; it also differs depending on whether we assume constant marginal required income "costs" for children and adults or if we allow for a quadratic income relationship.^[With a quadratic term in the regression, the fixed point is determined by the solution to the quadratic formula -- we did not uncover any complex roots in our analysis.] Treating adults and kids as continuous variables, the (log) subjective poverty line is defined by \eqref{eq:linear-spl}. 
 \begin{equation}
 \label{eq:linear-spl}
-\underline{Y}_i =   \frac{\alpha + \phi A_i + \theta K_i + \sum_j \zeta_j Z_j }{1-\beta} 
+\ln \underline{Y}_i =  \frac{\alpha + \phi A_i + \theta K_i + \sum_j \zeta_j Z_j }{1-\beta}
 \end{equation}
-On the other hand, if indicator functions are used for each child and each adult, the subjective poverty line is determined by \eqref{eq:linear-spl-dummy}.
+
+In other words, estimates yield constant percentage changes; the percentage change in required income for an additional adult is $\phi/(1-\beta)$, while the percentage change per child is $\theta/(1-\beta)$.^[The partial derivative of $\ln \underline{Y}_i$ with respect to $A_i$ in \eqref{eq:linear-spl} is constant $(\phi)$. In models where squared income is included, the underlying calculations are more complicated because the quadratic formula is used to determine the poverty line. In other words, $\ln \underline{Y} = (2a)^{-1}\times (-b \pm \sqrt{b^2 - 4ac})$, where $a=\gamma$, $b=1-\beta$ and $c= \alpha + \phi A + \theta K$. There are two roots; one yields required income levels approximate five times its mean value in the two surveys, while the other yields levels relatively close to the mean values in the surveys; we choose the smaller of these, because it is more representative of the data.] As reported below, we find support for this modelling assumption, and, therefore, we do not derive poverty lines underpinned by non-constant percentage changes per child that would be implied by estimates from \eqref{eq:linindex}. 
+
+<!--On the other hand, if indicator functions are used for each child and each adult, the subjective poverty line is determined by \eqref{eq:linear-spl-dummy}.
 \begin{equation}
 \label{eq:linear-spl-dummy}
-\underline{Y} =   \frac{\alpha + + \sum_a \delta_a a_{ia} + \sum_k \psi_k \kappa_{ik} + \sum_j \zeta_j Z_j }{1-\beta} 
+\underline{Y} =  \exp \left( \frac{\alpha + + \sum_a \delta_a a_{ia} + \sum_k \psi_k \kappa_{ik} + \sum_j \zeta_j Z_j }{1-\beta} \right)
 \end{equation}
 For reporting, we net out all of the $Z$ factors; they are included in the regression, but are not included in the calculation of subjective poverty. However, it is possible to calculate different subjective poverty lines for different regions of the country, or other subgroups by altering the calculation structure.
 
-<!--For the general equation, we will apply simulation methods, searching for the value of $\ln \underline{Y} = f(\ln \underline Y, D, Z)$, conditional on $D$ and $Z$. 
+For the general equation, we will apply simulation methods, searching for the value of $\ln \underline{Y} = f(\ln \underline Y, D, Z)$, conditional on $D$ and $Z$. 
 
 Rearranging to find the intersection - goedhart - yields the subjective poverty line, as a function of the demographic and other characteristics \eqref{eq:spl}.
 
@@ -847,84 +865,342 @@ In these figures, we see some evidence that the additional controls affect the r
 
 ```{r linear-models, dependson="lcs"}
 
+## dummy rows for squared term..
+ddr1 <- tibble(n="lny.sq",results = NA)
+ddr2 <- tibble(n="lny.sq",results = NA)
+ddr <- rbind(ddr1, ddr2)
+
 base.data <- lcs2014 %>%
   mutate(ao = as.numeric(ao),
          ko = as.numeric(ko))
 
-lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male + 
-                      ethnic + province + settle + marital + education +
-                       month + grants,
+lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
+                       hhh.male + ethnic + province + settle +
+                       marital + education + month + grants,
                     data=base.data)
-lineary_smooth_tab <- ctab(lineary_smooth)[5:8,c(1,3)]
-lcs_ly_smooth_tab <- ctab(lineary_smooth)
+lineary_smooth_tab <- ctab(lineary_smooth, 
+                           cluster = lcs2014$psu)[1:8,c(1,3)]
+lysmooth_tab <- rbind(lineary_smooth_tab[1:4,],
+                      ddr,
+                      lineary_smooth_tab[5:8,])
+
+lcs_ly_smooth_tab <- ctab(lineary_smooth, 
+                           cluster = lcs2014$psu)
 
 lineary_dummies <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
-                       a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
-                       ethnic + province + settle + marital + education+
-                       month + grants,
+                        a2 + a3 + a4 + a5 + a6 +  age + age.sq +
+                        hhh.male + ethnic + province + settle +
+                        marital + education + month + grants,
                      data=base.data)
-lineary_dummies_tab <- ctab(lineary_dummies)[5:22,3]
-lcs_ly_dummies_tab <- ctab(lineary_dummies)
+lineary_dummies_tab <- ctab(lineary_dummies, 
+                           cluster = lcs2014$psu)[1:22,3]
+lydum_tab <- rbind(lineary_dummies_tab[1:4,],
+                     ddr[,2],
+                     lineary_dummies_tab[5:22,])
+lcs_ly_dummies_tab <- ctab(lineary_dummies, 
+                           cluster = lcs2014$psu)
 
 quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
                          ethnic + province + settle + marital + education +
                        month + grants,
                        data=base.data)
-quadraticy_smooth_tab <- ctab(quadraticy_smooth)[7:10,3] 
-lcs_qy_smooth_tab <- ctab(quadraticy_smooth)
+quadraticy_smooth_tab <- ctab(quadraticy_smooth, 
+                           cluster = lcs2014$psu)[1:10,3] 
+lcs_qy_smooth_tab <- ctab(quadraticy_smooth, 
+                           cluster = lcs2014$psu)
 
 quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
                           a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
                           ethnic + province + settle + marital + education+
                        month + grants,
                         data=base.data)
-quadraticy_dummies_tab <- ctab(quadraticy_dummies)[7:24,3]
-lcs_qy_dummies_tab <- ctab(quadraticy_dummies)
+quadraticy_dummies_tab <- ctab(quadraticy_dummies, 
+                           cluster = lcs2014$psu)[1:24,3]
+lcs_qy_dummies_tab <- ctab(quadraticy_dummies, 
+                           cluster = lcs2014$psu)
+
+# hypothesis tests...
+vcov_cluster_ldum <- vcovCL(lineary_dummies, cluster = ~ psu)
+vcov_cluster_qdum <- vcovCL(quadraticy_dummies, cluster = ~ psu)
+
+# Joint test of coefficients k1..k4 and a2..a6
+kids_ldum <- linearHypothesis(lineary_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+kids_qdum <- linearHypothesis(quadraticy_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+
+adults_ldum <- linearHypothesis(lineary_dummies,
+                 c("3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+adults_qdum <- linearHypothesis(quadraticy_dummies,
+                 c("3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+
+all_ldum <- linearHypothesis(lineary_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2",
+                   "3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+all_qdum <- linearHypothesis(quadraticy_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2",
+                   "3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+
 
 ```
 
 ```{r linear-models-ghs, dependson="ghs"}
+## dummy rows for squared term..
+ddr1 <- tibble(n="lny.sq",results = NA)
+ddr2 <- tibble(n="lny.sq",results = NA)
+ddr <- rbind(ddr1, ddr2)
 
 base.data <- ghs2023 %>%
   mutate(ao = as.numeric(ao),
          ko = as.numeric(ko))
 
-lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male + 
-                       ethnic + province + settle + marital + education +
-                       month + grants,
+lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
+                       hhh.male + ethnic + province + settle +
+                       marital + education +month + grants,
                      data=base.data)
-lineary_smooth_ghs <- ctab(lineary_smooth)[5:8,c(1,3)]
-ghs_ly_smooth_tab <- ctab(lineary_smooth)
+lineary_smooth_ghs <- ctab(lineary_smooth, 
+                           cluster = ghs2023$psu)[1:8,c(1,3)]
+lysmooth_ghs <- rbind(lineary_smooth_ghs[1:4,],
+                      ddr,
+                      lineary_smooth_ghs[5:8,])
+ghs_ly_smooth_tab <- ctab(lineary_smooth, 
+                           cluster = ghs2023$psu)
 
 lineary_dummies <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
-                        a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
-                        ethnic + province + settle + marital + education+
+                        a2 + a3 + a4 + a5 + a6 +  age + 
+                        age.sq + hhh.male + ethnic + province +
+                        settle + marital + education +
                         month + grants,
                       data=base.data)
-lineary_dummies_ghs <- ctab(lineary_dummies)[5:22,3]
-ghs_ly_dummies_tab <- ctab(lineary_dummies)
+lineary_dummies_ghs <- ctab(lineary_dummies, 
+                           cluster = ghs2023$psu)[1:22,3]
+lydum_ghs <- rbind(lineary_dummies_ghs[1:4,],
+                   ddr[,2],
+                   lineary_dummies_ghs[5:22,])
+ghs_ly_dummies_tab <- ctab(lineary_dummies, 
+                           cluster = ghs2023$psu)
 
-quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
-                          ethnic + province + settle + marital + education +
+quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  
+                          age + age.sq + hhh.male + 
+                          ethnic + province + settle + 
+                          marital + education +
                           month + grants,
                         data=base.data)
-quadraticy_smooth_ghs <- ctab(quadraticy_smooth)[7:10,3] 
-ghs_qy_smooth_tab <- ctab(quadraticy_smooth)
+quadraticy_smooth_ghs <- ctab(quadraticy_smooth, 
+                           cluster = ghs2023$psu)[1:10,3] 
+ghs_qy_smooth_tab <- ctab(quadraticy_smooth, 
+                           cluster = ghs2023$psu)
 
-quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
-                           a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
-                           ethnic + province + settle + marital + education+
+quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + 
+                           k3 + k4 + a2 + a3 + a4 + a5 + 
+                           a6 +  age + age.sq + hhh.male + 
+                           ethnic + province + settle + 
+                           marital + education+
                            month + grants,
                          data=base.data)
-quadraticy_dummies_ghs <- ctab(quadraticy_dummies)[7:24,3]
-ghs_qy_dummies_tab <- ctab(quadraticy_dummies)
+quadraticy_dummies_ghs <- ctab(quadraticy_dummies, 
+                           cluster = ghs2023$psu)[1:24,3]
+ghs_qy_dummies_tab <- ctab(quadraticy_dummies, 
+                           cluster = ghs2023$psu)
+
+# hypothesis tests...
+vcov_cluster_ldum <- vcovCL(lineary_dummies, cluster = ~ psu)
+vcov_cluster_qdum <- vcovCL(quadraticy_dummies, cluster = ~ psu)
+
+# Joint test of coefficients k1..k4 and a2..a6
+kids_ldum_ghs <- linearHypothesis(lineary_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+kids_qdum_ghs <- linearHypothesis(quadraticy_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+
+adults_ldum_ghs <- linearHypothesis(lineary_dummies,
+                 c("3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+adults_qdum_ghs <- linearHypothesis(quadraticy_dummies,
+                 c("3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+
+
+all_ldum <- linearHypothesis(lineary_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2",
+                   "3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_ldum,
+                 test = "F")
+
+all_qdum <- linearHypothesis(quadraticy_dummies,
+                 c("4*k1 = k4", 
+                   "3*k1 = k3",
+                   "2*k1 = k2",
+                   "3*a2 = a6",
+                   "2.5*a2 = a5",
+                   "2*a2 = a4", 
+                   "1.5*a2 = a3"),
+                 vcov = vcov_cluster_qdum,
+                 test = "F")
+```
+
+# Sensitivity
+
+## Kids and adults
+
+## Quadratic income effects
+
+## Broader nonlinearities
+
+```{r basemodel, dependson="lcs;ghs"}
+lcs_data <- lcs2014 %>%
+  mutate(ao = as.numeric(ao),
+         ko = as.numeric(ko))
+
+ghs_data <- ghs2023 %>%
+  mutate(ao = as.numeric(ao),
+         ko = as.numeric(ko))
+
+model_formula <- formula(lnminq ~ lny + ao + ko +  age + age.sq +
+                  hhh.male + ethnic + province + settle +
+                  marital + education + month + grants)
+
+lcs_model <- lm(model_formula,
+                data=lcs_data)
+
+ghs_model <- lm(model_formula,
+                data=ghs_data)
+
+
+lcs_kids <- coef(lcs_model)["ko"]
+ghs_kids <- coef(ghs_model)["ko"]
+
+lcs_adults <- coef(lcs_model)["ao"]
+ghs_adults <- coef(ghs_model)["ao"]
+
+lcs_inc <- coef(lcs_model)["lny"]
+ghs_inc <- coef(ghs_model)["lny"]
+```
+
+
+```{r exog-quantiles, dependson="basemodel"}
+
+taus <- seq(0.01,0.95,0.01)
+
+# Estimate quantile regressions for each tau
+lcs_fit <- rq(model_formula, 
+              data = lcs_data, tau = taus)
+#summary(fit, se = "boot")
+#summary(fit)[c(1,20)]
+
+lcs_tidy_fit <- tidy(lcs_fit, conf.int = TRUE, conf.level = 0.95)
+
+ghs_fit <- rq(model_formula, 
+              data = ghs_data, tau = taus)
+#summary(fit, se = "boot")
+#summary(fit)[c(1,20)]
+
+ghs_tidy_fit <- tidy(ghs_fit, conf.int = TRUE, conf.level = 0.95)
+```
+
+
+```{r exog-plots-kids, dependson="exog-quantiles;basemodel", fig.cap = "Children quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+
+# lcs
+lcs_tidy_fit %>%
+  filter(term == "ko") %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = lcs_kids, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Child estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+#plot_drinker <- 
+ghs_tidy_fit %>%
+  filter(term == "ko") %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = ols_drinker, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Child estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
 
 ```
 
 
+
+## Potential endogeneities
+
 ## Subjective poverty
 
-Before calculating the subjective poverty lines, we present the main household structure estimates from the linear and quadratic models; see Table \@ref(tab:linear-kids-adults-table). Three important take-aways can be gleaned from this table. The first is that a constant marginal cost assumption is inappropriate across both surveys -- for one child, two children and so on, the increase in the estimate is not constant. For adults in 2023, the assumption is not a terrible approximation, even though the estimate increase (for two adults, three adults, and so on) is also not constant. The second is that the cost is increasing in the number of adults and children, while the cost of a child is estimated to be larger than the cost of an adult. Thus, required income increases with household size, and moreso for children than adults. The third is that the cost per child and adult is larger in 2023 than it was in 2015. 
+Before calculating the subjective poverty lines, we present the main household structure estimates from the linear and quadratic models; see Table \@ref(tab:linear-kids-adults-table). Four important take-aways can be gleaned from this table. The first is that constant coefficients for each adult and child is a reasonable approximation across both surveys.^[We test this using a joint hypothesis test accounting for data clustering. For all models in both years, the constant hypothesis is not rejected for adults. Only for the linear model in 2014 is the joint test of constant parameters rejected at a 0.05 level of confidence; it is not rejected for the the three remaining. When we jointly test for constancy for adults and children, it is rejected for for both data sources assuming a 0.05 level of confidence. Technically, this is a test that (for example) the estimate for four children is four times that of one child, the estimate for four adults is two times the estimate for two adults, and so on.] Second, required minimum income is increasing in the number of adults and children, while the increase per child is estimated to be larger than for an adult. Thus, required income increases with household size, and moreso for children than adults. The third is that required income per child and adult is larger in 2023 than it was in 2015. Each of these three suggest increasing subjective poverty lines for household size and over time. However, the fourth observation is that the intercept is lower in 2023 than in 2014 which lowers the reference level for subjective poverty. After combining the third and fourth observations, it is not obvious whether the lines will be higher or lower in 2023, and, therefore, we will compute them for comparison.
 
 ```{r linear-kids-adults-table, dependson="linear-models; linear-models-ghs", results = "asis"}
 
@@ -932,18 +1208,28 @@ Before calculating the subjective poverty lines, we present the main household s
 # components of the models
 # Goal is just to show if this really matters..
 # Effect sizes...
-smooth.tab.names <- c("Adults in hh", "", "Children in hh","")
-smooth.tab <- tibble(rnames = smooth.tab.names, ly = lineary_smooth_tab$results, 
+
+smooth.tab.names <- c("Intercept","","Log Income", "",
+                      "Squared Log Income","",
+                      "Adults in hh", "", 
+                      "Children in hh","")
+smooth.tab <- tibble(rnames = smooth.tab.names, 
+                     ly = lysmooth_tab$results, 
                      qy = quadraticy_smooth_tab$results,
-                     ly23 = lineary_smooth_ghs$results, 
+                     ly23 = lysmooth_ghs$results, 
                      qy23 = quadraticy_smooth_ghs$results)
 
-dummies.tab.names <- c("One child","","Two children","","Three children","","Four children","",
-                       "Two adults","", "Three adults","","Four adults","",
-                       "Five adults","","Six adults","")
-dummies.tab <- tibble(rnames = dummies.tab.names, ly = lineary_dummies_tab$results, 
+dummies.tab.names <- c("Intercept","","Log Income", "",
+                      "Squared Log Income","",
+                      "One child","","Two children","",
+                      "Three children","", "Four children","",
+                       "Two adults","", "Three adults","",
+                      "Four adults","", "Five adults","",
+                      "Six adults","")
+dummies.tab <- tibble(rnames = dummies.tab.names, 
+                      ly = lydum_tab$results, 
                       qy = quadraticy_dummies_tab$results, 
-                      ly23 = lineary_dummies_ghs$results, 
+                      ly23 = lydum_ghs$results, 
                       qy23 = quadraticy_dummies_ghs$results)
 
 
@@ -956,19 +1242,17 @@ kable(results.tab, format = "latex", align='lrrrr',
       caption="Effect size estimates for adults and children on (log) reported minimum household income from the Living Conditions Survey 2014-15 and General Household Survey 2023",
       col.names=c("Composition","Linear","Quadratic","Linear","Quadratic")) %>%
   add_header_above(c(" "=1, "Living Conditions" = 2, "General Household" = 2)) %>%
-  pack_rows("Adults and children as continuous variables", 1, 4) %>%
-  row_spec(4, hline_after = TRUE) %>%
-  pack_rows("Adults and children as categorical variables", 5, 22) %>%
-  row_spec(22, hline_after = TRUE) %>%
+  pack_rows("Adults and children as continuous variables", 1, 10) %>%
+  row_spec(10, hline_after = TRUE) %>%
+  pack_rows("Adults and children as categorical variables", 11, 34) %>%
+  #row_spec(34, hline_after = TRUE) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
   footnote(general = "Estimated coefficients across household types. Reported estimates limited to children and adults in the household. Models included the log of household income (Linear) as well as the matching square (Quadratic), and the total number of grants received in the household, as well as household head age, its square, gender, and population group. Models also included province, survey month, head education, marital status and settlement-type fixed effects.", escape=FALSE, general_title="",threeparttable=TRUE) 
 
 ```
 
 
-
-
-Here, we predict required minimum income, based on the intersection rule. 
+Given the preceding observations, we are able to calculate the additional required minimum income per adult and per child, for each of the survey years. Due to the fact that we cannot reject the null hypothesis that estimates are constant across adults and constant across children, our model suggests that the percentage increase in required minimum income per adult is constant, as is the percentage increase in required minimum income per child, although there is a difference between the adult and child percentage. 
 
 ## Subjectively poor vs NT objectively poor?
 
@@ -1013,9 +1297,9 @@ base.data <- lcs2014 %>%
   mutate(ao = as.numeric(ao),
          ko = as.numeric(ko))
 
-model <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education +
-                       month + grants,
+model <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq +
+              hhh.male + ethnic + province + settle + 
+              marital + education + month + grants,
             data=base.data)
 
 b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
@@ -1050,6 +1334,7 @@ spl.quad.yall.table <- spl.quad.yall %>%
   rename("spl" = "spl.quad") %>%
   dplyr::select(-c(ao,ko))
 ```
+
 
 
 ```{r lineary-spl-smooth-ghs, dependson="lcs-sub; ghs"}
@@ -1196,7 +1481,12 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 
 ```
 
-# Sensitivity: nonparametric regression
+# Sensitivity
+
+## Potential endogeneity
+
+
+## Nonparametric regression
 
 For sensitivity analysis, we focused our attention on functional form assumptions. Thus, in addition to the linear (and quadratic) specifications, we also undertook nonparametric regression of the relationship between required minimum income and household characteristics. Below, we discuss the adult and child gradients, which are the ones most closely related to the subjective poverty lines reported above.
 
@@ -1315,8 +1605,10 @@ legend("bottomright",
 \newpage
 \singlespacing
 # References {-}
+<div id="refs"></div>
 
 \doublespacing
+
 \newpage
 \appendix
 
@@ -1525,7 +1817,7 @@ kable(spl.tab, format = "latex", align='cccccc',
   footnote(general = "Estimated poverty lines by household type (adults and kids), netting out effects related to location, and other household head controls.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
 
-setcounter{figure}{0}
+\setcounter{figure}{0}
 \renewcommand\thefigure{\Alph{section}.\arabic{figure}} 
   
 \setcounter{table}{0}
@@ -1696,41 +1988,3 @@ kable(bandwidths, format = "latex", align='rr',
 ```
 
 
-# Age gradient for minimimum income
-
-```{r age-plot, dependson="np-plot-gradients",fig.cap = "Nonparametric regression plot of the gradient between age of the household head and reported minimum income (logs)"}
-
-
-# lcs data
-age.grad.lcs <- gradients(lcs.grad.out$rg4)
-age.lcs.se <- gradients(lcs.grad.out$rg4, errors = TRUE)
-age.lcs.lower.ci <- age.grad.lcs + age.lcs.se[,1]
-age.lcs.upper.ci <- age.grad.lcs + age.lcs.se[,2]
-age.lcs.eval <- lcs.grad.out$rg4$eval[,4]
-
-# ghs data
-age.grad.ghs <- gradients(ghs.grad.out$rg4)
-age.ghs.se <- gradients(ghs.grad.out$rg4, errors = TRUE)
-age.ghs.lower.ci <- age.grad.ghs + age.ghs.se[,1]
-age.ghs.upper.ci <- age.grad.ghs + age.ghs.se[,2]
-age.ghs.eval <- ghs.grad.out$rg4$eval[,4]
-
-plot(age.lcs.eval, age.grad.lcs, col = "blue", 
-     type = "l", lty = 1,
-    xlab = "Age of the household head",
-    ylab = "Log minimum income gradient",
-    ylim = c(-0.01,0.015),
-    xlim = c(15,80)
-    )
-lines(age.lcs.eval, age.lcs.lower.ci, col = "blue",lty=3)
-lines(age.lcs.eval, age.lcs.upper.ci, col = "blue",lty=3)
-lines(age.ghs.eval, age.grad.ghs, col = "red", lty = 1)
-lines(age.ghs.eval, age.ghs.lower.ci, col = "red",lty=3)
-lines(age.ghs.eval, age.ghs.upper.ci, col = "red",lty=3)
-legend("topleft",
-       lty = c(1,3,1,3),
-       col = c("blue","blue","red","red"),
-       legend = c("LCS", "LCS-ci",
-                  "GHS","GHS-ci"))
-
-```
