@@ -833,7 +833,7 @@ ddr <- rbind(ddr1, ddr2)
 
 base.data <- lcs2014 %>%
   mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+         ko = as.numeric(ko)-1)
 
 lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
                        hhh.male + ethnic + province + settle +
@@ -948,7 +948,7 @@ ddr <- rbind(ddr1, ddr2)
 
 base.data <- ghs2023 %>%
   mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+         ko = as.numeric(ko)-1)
 
 lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
                        hhh.male + ethnic + province + settle +
@@ -1062,11 +1062,11 @@ all_qdum <- linearHypothesis(quadraticy_dummies,
 ```{r basemodel, dependson="lcs;ghs"}
 lcs_data <- lcs2014 %>%
   mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+         ko = as.numeric(ko)-1)
 
 ghs_data <- ghs2023 %>%
   mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+         ko = as.numeric(ko)-1)
 
 model_formula <- formula(lnminq ~ lny + ao + ko +  age + age.sq +
                   hhh.male + ethnic + province + settle +

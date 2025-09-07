@@ -1,0 +1,322 @@
+---
+title: "np-gradients"
+author: "Steve"
+date: "2025-08-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Nonparametric regression
+
+In our final sensitivity analysis, we estimated a fully nonparametric regression of the mode. Optimal bandwidths per variable type for each survey year, reported in Table \@ref(tab:np-bw-table), were estimated via least-squares cross-validation [@liracine2004; @halletal2004]. In all models, monthly log income is treated continuously, while the education level of the head, gender, marital status and ethnicity are all treated as categorical factors, as are province of residence, household's urban status (settlement type) and month or quarter of the year in which the survey was completed. Although bandwidths are not average effects, they do offer insight into the underlying nonparametric relationship. In the case of continuous variables, the optimal bandwidth selection method uncovers irrelevant variables [@halletal2004], and that irrelevance is implied by infinite bandwidths.^[For both the number of adults and children, whose range is in the single digits, a bandwidth out to six digits far exceeds the underlying range, and, therefore, is suggestive of statistical irrelevance. In the case of categorical variables, bandwidths are more intuitively compared to category proportions. In the case of a binary factor, for example, a bandwidth close to zero is suggestive of a relevant variable.] 
+
+The estimated nonparametric relationship for adults and children are illustrated separately in Figures \@ref(fig:adults-plot) and \@ref(fig:kids-plot). Each suggests negligible effect sizes. For adults, the relationship is $U-$shaped in 2023, although the $U$ is very elongated, and positive (but small) in 2014/15. For adults in the LCS, the linear relationship increases from approximately 7.7 to 8.1 log points across five additional adults, or just less than 0.08 points per additional adult. These are not too dis-similar from the least-squares estimates. The analysis also suggests that required minimum income decreases with the number of children; this result appears for both 2014/15 and 2023, while the slopes are rather similar in each year. For children, the decrease is close to 0.3 log points over four additional children or approximately -0.075 points per additional child. The nonparametric child estimates are approximately the same size as was uncovered in the linear models; however, they do not agree in sign. Thus, we find economically small adult and child "effects" related to required minimum income in the household. Figures \@ref(fig:lcs-loess-plot) and \@ref(fig:ghs-loess-plot) illustrate the underlying relationship between required minimum income and actual income (both in logs), after controlling for the additional controls in the model. These relationships suggest that minimum income is (for the most part) increasing in actual income, but that it does not depend on household size. 
+
+
+```{r np-plot, dependson="np-data"}
+
+# Seems to require the exact same data frame name...
+df <- lcs.npdata
+lcs.out <- plot(bws = bw.lcs,
+                perspective = FALSE,
+                     #plot.errors.method="bootstrap",
+                     #plot.errors.boot.num=399,
+                     #plot.errors.quantiles = c(0.05,0.95),
+                plot.behavior="data",
+                common.scale = FALSE)
+
+# Seems to require the exact same data frame name...
+df <- ghs.npdata
+ghs.out <- plot(bws = bw.ghs,
+                     #data = ghs.npdata,
+                     #gradients = TRUE,
+                perspective=FALSE,
+                     #plot.errors.method="bootstrap",
+                     #plot.errors.boot.num=399,
+                     #plot.errors.quantiles = c(0.05,0.95),
+                plot.behavior="data",
+                common.scale = FALSE)
+
+
+```
+
+```{r adults-slope-plot, dependson="np-plot",fig.cap = "Nonparametric regression plot of relationship between adults and required minimum income (logs)."}
+
+# lcs data
+adult.lcs <- fitted(lcs.out$r3)
+#adult.lcs.se <- gradients(lcs.grad.out$r3, errors = TRUE)
+#adult.lcs.lower.ci <- adult.grad.lcs + adult.lcs.se[,1]
+#adult.lcs.upper.ci <- adult.grad.lcs + adult.lcs.se[,2]
+adult.lcs.eval <- lcs.out$r3$eval[,3]
+
+# ghs data
+adult.ghs <- fitted(ghs.out$r3)
+#adult.ghs.se <- gradients(ghs.grad.out$r3, errors = TRUE)
+#adult.ghs.lower.ci <- adult.grad.ghs + adult.ghs.se[,1]
+#adult.ghs.upper.ci <- adult.grad.ghs + adult.ghs.se[,2]
+adult.ghs.eval <- ghs.out$r3$eval[,3]
+
+yad_min = min(c(min(adult.lcs),min(adult.ghs)))
+yad_max = max(c(max(adult.lcs),max(adult.ghs)))
+
+plot(adult.lcs.eval, adult.lcs, col = "blue", 
+     type = "l", lty = 1,
+    xlab = "Adults in household",
+    ylab = "Log minimum income",
+    ylim = c(yad_min,yad_max)
+    )
+#lines(adult.lcs.eval, adult.lcs.lower.ci, col = "blue",lty=3)
+#lines(adult.lcs.eval, adult.lcs.upper.ci, col = "blue",lty=3)
+lines(adult.ghs.eval, adult.ghs, col = "red", lty = 1)
+#lines(adult.ghs.eval, adult.ghs.lower.ci, col = "red",lty=3)
+#lines(adult.ghs.eval, adult.ghs.upper.ci, col = "red",lty=3)
+legend("right",
+       lty = c(1,1),
+       col = c("blue", "red"),
+       legend = c("LCS","GHS"))
+
+```
+
+```{r kids-slope-plot, dependson="np-plot",fig.cap = "Nonparametric regression plot of relationship between children and required minimum income (logs)."}
+
+# lcs data
+kid.lcs <- fitted(lcs.out$r2)
+#kid.lcs.se <- gradients(lcs.grad.out$r4, errors = TRUE)
+#kid.lcs.lower.ci <- kid.grad.lcs + kid.lcs.se[,1]
+#kid.lcs.upper.ci <- kid.grad.lcs + kid.lcs.se[,2]
+kid.lcs.eval <- lcs.out$r2$eval[,2]
+
+# ghs data
+kid.ghs <- fitted(ghs.out$r2)
+#kid.ghs.se <- gradients(ghs.grad.out$r4, errors = TRUE)
+#kid.ghs.lower.ci <- kid.grad.ghs + kid.ghs.se[,1]
+#kid.ghs.upper.ci <- kid.grad.ghs + kid.ghs.se[,2]
+kid.ghs.eval <- ghs.out$r2$eval[,2]
+
+# range...
+ykd_min = min(c(min(kid.lcs),min(kid.ghs)))
+ykd_max = max(c(max(kid.lcs),max(kid.ghs)))
+
+plot(kid.lcs.eval, kid.lcs, col = "blue", 
+     type = "l", lty = 1,
+    xlab = "Kids in household",
+    ylab = "Log minimum income",
+    ylim = c(ykd_min,ykd_max)
+    )
+#lines(kid.lcs.eval, kid.lcs.lower.ci, col = "blue",lty=3)
+#lines(kid.lcs.eval, kid.lcs.upper.ci, col = "blue",lty=3)
+lines(kid.ghs.eval, kid.ghs, col = "red", lty = 1)
+#lines(kid.ghs.eval, kid.ghs.lower.ci, col = "red",lty=3)
+#lines(kid.ghs.eval, kid.ghs.upper.ci, col = "red",lty=3)
+legend("right",
+       lty = c(1,1),
+       col = c("blue", "red"),
+       legend = c("LCS","GHS"))
+
+```
+
+
+```{r np-plot-gradients, dependson="np-data"}
+
+# Seems to require the exact same data frame name...
+df <- lcs.npdata
+lcs.grad.out <- plot(bws = bw.lcs,
+                    # data = lcs.npdata,
+                    gradients = TRUE,
+                    # perspective = FALSE,
+                    # plot.errors.method="bootstrap",
+                    # plot.errors.boot.num=399,
+                    # plot.errors.quantiles = c(0.05,0.95),
+                     plot.behavior="data",
+                     common.scale = FALSE)
+
+# Seems to require the exact same data frame name...
+df <- ghs.npdata
+ghs.grad.out <- plot(bws = bw.ghs,
+                     #data = ghs.npdata,
+                     gradients = TRUE,
+                     #perspective=FALSE,
+                     #plot.errors.method="bootstrap",
+                     #plot.errors.boot.num=399,
+                     #plot.errors.quantiles = c(0.05,0.95),
+                     plot.behavior="data",
+                     common.scale = FALSE)
+
+
+```
+
+```{r lny-plot, dependson="np-plot-gradients",fig.cap = "Nonparametric regression plot of the gradient between household income and reported minimum income (both logs)."}
+
+# lcs data
+lny.grad.lcs <- gradients(lcs.grad.out$rg1)
+#lny.lcs.se <- gradients(lcs.grad.out$rg1, errors = TRUE)
+#lny.lcs.lower.ci <- lny.grad.lcs + lny.lcs.se[,1]
+#lny.lcs.upper.ci <- lny.grad.lcs + lny.lcs.se[,2]
+lny.lcs.eval <- lcs.grad.out$rg1$eval[,1]
+
+# ghs data
+lny.grad.ghs <- gradients(ghs.grad.out$rg1)
+#lny.ghs.se <- gradients(ghs.grad.out$rg1, errors = TRUE)
+#lny.ghs.lower.ci <- lny.grad.ghs + lny.ghs.se[,1]
+#lny.ghs.upper.ci <- lny.grad.ghs + lny.ghs.se[,2]
+lny.ghs.eval <- ghs.grad.out$rg1$eval[,1]
+
+plot(lny.lcs.eval, lny.grad.lcs, col = "blue", 
+     type = "l", lty = 1,
+    xlab = "Household actual (log) income",
+    ylab = "Log minimum income gradient",
+    ylim = c(-0.25,0.75),
+    xlim = c(5,12))
+#lines(lny.lcs.eval, lny.lcs.lower.ci, col = "blue",lty=3)
+#lines(lny.lcs.eval, lny.lcs.upper.ci, col = "blue",lty=3)
+lines(lny.ghs.eval, lny.grad.ghs, col = "red", lty = 1)
+#lines(lny.ghs.eval, lny.ghs.lower.ci, col = "red",lty=3)
+#lines(lny.ghs.eval, lny.ghs.upper.ci, col = "red",lty=3)
+legend("bottomright",
+       lty = c(1,1),
+       col = c("blue","red"),
+       legend = c("LCS", "GHS"))
+```
+
+
+## Nonparametric
+
+
+```{r np-bw-table, dependson="np-data", results="asis"}
+
+# pulling the bandwidths from the np analysis
+bandwidths <- cbind(bw.lcs$bw, bw.ghs$bw) %>%
+  round(digits = 5)
+
+# there are two that need to be separately rounded, 
+# because they are orders of magnitude bigger
+#bandwidths[2,1:2] <- format(bandwidths[2,1:2],digits=1)
+#bandwidths[3,1:2] <- format(bandwidths[3,1:2],digits=1)
+#bandwidths[4,1:2] <- formatC(bandwidths[4,1:2],format = "f", digits=1)
+#bandwidths[4,2] <- format(bandwidths[4,2],digits=1)
+
+# names of the matrix for the table...
+#colnames(bandwidths) <- c("Continuous","Categorical","Ordered")
+rownames(bandwidths) <- c("Log income", "Kids in HH", "Adults in HH",
+                          "Household head age", "Male household head",
+                          "Ethnicity", "Marital status",
+                          "Education qualification", "Province",
+                          "Settlement type", "Month of Survey")
+
+
+kable(bandwidths, format = "latex", align='rr',
+      row.names = T,
+      booktabs=TRUE, escape=FALSE, longtable=FALSE,
+      linesep="",
+      caption="Nonparmetric optimal bandwidth estimates from regressions of (log) reported minimum income against household level variables.",
+      col.names=c("Variables","LCS 2014","GHS 2023")) %>%
+  #add_header_above(c(" "=2, "Household Income"=3, "Household Expenditure" = 3)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Optimal bandwidths arising from least squares cross-validation of nonparametric regressions. Data sources listed as column headings.", escape=FALSE, general_title="",threeparttable=TRUE) 
+
+```
+
+
+
+
+```{r np-plot-gradients, dependson="np-data"}
+
+# Seems to require the exact same data frame name...
+df <- lcs.npdata
+lcs.grad.out <- plot(bws = bw.lcs,
+                    # data = lcs.npdata,
+                    gradients = TRUE,
+                     perspective = FALSE,
+                     plot.errors.method="bootstrap",
+                     plot.errors.boot.num=399,
+                     plot.errors.quantiles = c(0.05,0.95),
+                     plot.behavior="data",
+                     common.scale = FALSE)
+
+# Seems to require the exact same data frame name...
+df <- ghs.npdata
+ghs.grad.out <- plot(bws = bw.ghs,
+                     #data = ghs.npdata,
+                     gradients = TRUE,
+                     perspective=FALSE,
+                     plot.errors.method="bootstrap",
+                     plot.errors.boot.num=399,
+                     plot.errors.quantiles = c(0.05,0.95),
+                     plot.behavior="data",
+                     common.scale = FALSE)
+
+
+```
+
+```{r adults-plot, dependson="np-plot-gradients",fig.cap = "Nonparametric regression plot of the gradient between adults and in the household and reported minimum income (logs)."}
+
+# lcs data
+adult.grad.lcs <- gradients(lcs.grad.out$rg3)
+adult.lcs.se <- gradients(lcs.grad.out$rg3, errors = TRUE)
+adult.lcs.lower.ci <- adult.grad.lcs + adult.lcs.se[,1]
+adult.lcs.upper.ci <- adult.grad.lcs + adult.lcs.se[,2]
+adult.lcs.eval <- lcs.grad.out$rg3$eval[,3]
+
+# ghs data
+adult.grad.ghs <- gradients(ghs.grad.out$rg3)
+adult.ghs.se <- gradients(ghs.grad.out$rg3, errors = TRUE)
+adult.ghs.lower.ci <- adult.grad.ghs + adult.ghs.se[,1]
+adult.ghs.upper.ci <- adult.grad.ghs + adult.ghs.se[,2]
+adult.ghs.eval <- ghs.grad.out$rg3$eval[,3]
+
+plot(adult.lcs.eval, adult.grad.lcs, col = "blue", 
+     type = "l", lty = 1,
+    xlab = "Number of adults in household",
+    ylab = "Log minimum income gradient",
+    ylim = c(-0.3,0.2))
+lines(adult.lcs.eval, adult.lcs.lower.ci, col = "blue",lty=3)
+lines(adult.lcs.eval, adult.lcs.upper.ci, col = "blue",lty=3)
+lines(adult.ghs.eval, adult.grad.ghs, col = "red", lty = 1)
+lines(adult.ghs.eval, adult.ghs.lower.ci, col = "red",lty=3)
+lines(adult.ghs.eval, adult.ghs.upper.ci, col = "red",lty=3)
+legend("bottomright",
+       lty = c(1,3,1,3),
+       col = c("blue","blue","red","red"),
+       legend = c("LCS", "LCS-ci",
+                  "GHS","GHS-ci"))
+
+
+```
+
+```{r kids-plot, dependson="np-plot-gradients",fig.cap = "Nonparametric regression plot of the gradient between children and in the household and reported minimum income (logs), relative to only one adult"}
+
+
+# lcs data
+kid.grad.lcs <- gradients(lcs.grad.out$rg2)
+kid.lcs.se <- gradients(lcs.grad.out$rg2, errors = TRUE)
+kid.lcs.lower.ci <- kid.grad.lcs + kid.lcs.se[,1]
+kid.lcs.upper.ci <- kid.grad.lcs + kid.lcs.se[,2]
+kid.lcs.eval <- lcs.grad.out$rg2$eval[,2]
+
+# ghs data
+kid.grad.ghs <- gradients(ghs.grad.out$rg2)
+kid.ghs.se <- gradients(ghs.grad.out$rg2, errors = TRUE)
+kid.ghs.lower.ci <- kid.grad.ghs + kid.ghs.se[,1]
+kid.ghs.upper.ci <- kid.grad.ghs + kid.ghs.se[,2]
+kid.ghs.eval <- ghs.grad.out$rg2$eval[,2]
+
+plot(kid.lcs.eval, kid.grad.lcs, col = "blue", 
+     type = "l", lty = 1,
+    xlab = "Number of kids in household",
+    ylab = "Log minimum income gradient",
+    ylim = c(-0.35,0.05))
+lines(kid.lcs.eval, kid.lcs.lower.ci, col = "blue",lty=3)
+lines(kid.lcs.eval, kid.lcs.upper.ci, col = "blue",lty=3)
+lines(kid.ghs.eval, kid.grad.ghs, col = "red", lty = 1)
+lines(kid.ghs.eval, kid.ghs.lower.ci, col = "red",lty=3)
+lines(kid.ghs.eval, kid.ghs.upper.ci, col = "red",lty=3)
+legend("bottomright",
+       lty = c(1,3,1,3),
+       col = c("blue","blue","red","red"),
+       legend = c("LCS", "LCS-ci",
+                  "GHS","GHS-ci"))
+
+```

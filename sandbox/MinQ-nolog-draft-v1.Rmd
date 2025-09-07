@@ -338,6 +338,7 @@ house.df <- household %>%
     # 63 observations have 0 values... length(which(house.df$y==0))
     # also deflated/inflated to April 2015
     y.month = y/12,
+    y2.month = y.month^2,
     lnx = log(x.month),
     lny = log(y.month),
     minq = Q229NETINCOME, 
@@ -375,15 +376,15 @@ lcs2014 <- person1 %>%
          a6 = 1*(adults==6),
          lnx.sq = lnx^2,
          lny.sq = lny^2,
-         age.sq = age^2) %>%
-  dplyr::select(-c(x,y,x.month,y.month,minq,Q21HIGHLEVEL,
-                   surveydate, wt, hhh.dummy))
+         age.sq = age^2) 
+  #dplyr::select(-c(x.month,y.month,minq,Q21HIGHLEVEL,
+  #                 surveydate, wt, hhh.dummy))
 
 ## It appears that we lose 312 observations for missing values, 
 ## we lose 556 in total; the extra coming from limiting adults and kids in hh
   
 # save image
-save(lcs2014, file = "../lcsdata/lcs2014.Rdata")
+save(lcs2014, file = "../lcsdata/lcs2014-v2.Rdata")
 
 # save a single data frame: LCS2014
 # This gets used by the NP files.
@@ -407,13 +408,13 @@ dfref <- cbind(k1 = 0, k2 = 0, k3 = 0, k4 = 0,
                a2 = 0, a3 = 0, a4 = 0, a5 = 0, a6 = 0)
 
 akmat <- lcs2014 %>%
-  dplyr::select(ao,ko,
+  dplyr::select(adults,kids,
                 a1, a2, a3, a4, a5, a6, 
                 k0, k1, k2, k3, k4) %>%
   unique() %>%
-  arrange(ko) %>%
-  group_by(ko) %>%
-  arrange(ao) %>%
+  arrange(kids) %>%
+  group_by(kids) %>%
+  arrange(adults) %>%
   ungroup()
 
 dfalt <- akmat %>%
@@ -440,8 +441,11 @@ ghs.house <- household %>%
   transmute(uqnr = as.character(uqnr),
             psu=psu,
             lny = log(totmhinc),
+            y.month = totmhinc,
+            y2.month = y.month^2,
             lny.sq = lny^2,
             lnminq = log(fin_reqinc),
+            minq = fin_reqinc,
             x = as_factor(fin_exp),
             hhsize = hholdsz,
             kids = chld17yr_hh,
@@ -505,18 +509,9 @@ ghs2023 <- ghs.house %>%
 
 rm(household, person, ghs.person, ghs.house)
 
-save(ghs2023, file = "../ghs2023/ghs2023.Rdata")
+save(ghs2023, file = "../ghs2023/ghs2023-v2.Rdata")
 ```
 
-
-```{r np-data}
-
-# load in the np data and bandwidths and such
-load("../npfiles/lcs-np.Rdata")
-load("../npfiles/ghs-np.Rdata")
-
-
-```
 
 \newpage
 \pagenumbering{arabic}
@@ -651,194 +646,52 @@ The linear model specified yields marginal costs that are partially independent 
 # Results
 
 
-```{r np-plot-data, dependson="np-data"}
-
-# Seems to require the exact same data frame name...
-df <- lcs.npdata
-lcs.plot.out <- plot(bws = bw.lcs,
-                    # data = lcs.npdata,
-                     perspective = FALSE,
-                     plot.errors.method="bootstrap",
-                     plot.errors.boot.num=399,
-                     plot.errors.quantiles = c(0.05,0.95),
-                     plot.behavior="data",
-                     common.scale = FALSE)
-
-# Seems to require the exact same data frame name...
-df <- ghs.npdata
-ghs.plot.out <- plot(bws = bw.ghs,
-                     #data = ghs.npdata,
-                     perspective=FALSE,
-                     plot.errors.method="bootstrap",
-                     plot.errors.boot.num=399,
-                     plot.errors.quantiles = c(0.05,0.95),
-                     plot.behavior="data",
-                     common.scale = FALSE)
-
-
-```
-
-
 ## Descriptive statistics
 
 Descriptive statistics are available in the appendix; see Tables \@ref(tab:dstat) and \@ref(tab:dstat-ghs). The data is available for all households, and is further separated by an indicator of whether the household's minimum required income is larger than its actual income, i.e., they have enough (or too little). The data suggests a slight increase (over time) in the proportion of households with too little, an increase in the level of education of the household head, as well as increases in both income and reported minimum required income (in logs). However, those increases are not large. According to the data (not weighted to the population), minimum required income increased by 0.28 log points, while actual income increased by 0.24. In other words, average minimum required income increased by 0.28%, which is a bit more than average income, which increased by 0.24% over the 9 years between surveys.
 
 ## Regression results
 
+**I dropped these figures - Might want to bring the Loess back?**
 We begin by illustrating the nonparametric relationship between income and minimum required (using logs) in Figures \@ref(fig:lcs-loess-plot) and \@ref(fig:ghs-loess-plot). Each figure contains two curves: one underpinned by a Loess regression plot, which does not account for additional controls, while the other is derived from a fully nonparametric estimate of the relationship that includes the same controls as in equation \eqref{eq:continuous}. 
 
 
-```{r lcs-loess-plot, dependson="lcs; np-plot-data", fig.cap = "Nonparametric regression plot and data points: log reported minimum income against log reported income (LCS 2014-15).",}
-
-# np plot data and fit values for plots
-lnminq.eval <- fitted(lcs.plot.out$r1)
-lnmq.se <- se(lcs.plot.out$r1)
-lower.ci <- lnminq.eval + lnmq.se[,1]
-upper.ci <- lnminq.eval + lnmq.se[,2]
-lny.eval <- lcs.plot.out$r1$eval[,1]
-
-## loess estimation and data for plotting
-# putting into ggplot is a bit messy here
-lnydf <- data.frame(lny = seq(2.5,13.5,0.25))
-# loess span does not seem to matter much, 
-# it is the (additional) conditioning that matters
-lnminq.lo <- loess(lnminq ~ lny, span = 0.6, data = lcs2014)
-predict.lo <- predict(lnminq.lo, lnydf, se = TRUE)
-lo.lny.eval <- lnydf$lny
-lo.lnminq.eval <- predict.lo$fit
-lo.lower.ci <- predict.lo$fit - 1.96*predict.lo$se.fit
-lo.upper.ci <- predict.lo$fit + 1.96*predict.lo$se.fit
-
-lnydata <- lcs2014$lny
-lnminqdata <- lcs2014$lnminq
-
-plot(lnydata, lnminqdata, type = "p", col = "bisque",
-     xlab = "Log of Monthly Income (lny)",
-     ylab = "Log of Minimum Income (lnminq)",
-     xlim = c(5,12))
-lines(lo.lny.eval, lo.lnminq.eval, lwd = 2, lty = 1, col ="red")
-lines(lo.lny.eval, lo.lower.ci, lwd = 1, lty = 2, col ="red")
-lines(lo.lny.eval, lo.upper.ci, lwd = 1, lty = 2, col ="red")
-lines(lny.eval, lnminq.eval, lwd = 2, lty = 1, col ="blue")
-lines(lny.eval, lower.ci, lwd = 1, lty = 2, col ="blue")
-lines(lny.eval, upper.ci, lwd = 1, lty = 2, col ="blue")
-abline(a=0, b=1, col = "green", lwd = 2, lty = 3)
-legend("bottomright",
-       lty = c(1,1,3),
-       lwd = c(2,2,2),
-       col = c("red","blue","green"),
-       c("Loess Fit and CI",
-         "Conditional NP Fit and CI",
-         "45 degree line"))
-
-#main.df %>% ggplot(aes(x = lny, y = lnminq)) +
-#  geom_point(alpha = 0.4, color = "bisque", shape = 1) +  
-  #scale_shape(solid = FALSE) + 
-#  geom_smooth(method = "loess", color = "red", se = TRUE) +  
-#  labs(
-   # title = "Loess regressiob plot of lo vs. lny",
-#    x = "Log of Monthly Income (lny)",
-#    y = "Log of Minimum Income (lnminq)"
-#  ) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lnminq.eval),colour = "blue",
-#            linetype="solid", linewidth = 2) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lower.ci),colour = "blue",
-#            linetype="dashed", linewidth = 1) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=upper.ci),colour = "blue",
-#            linetype="dashed", linewidth = 1) +
-#  scale_color_manual(values = c("Lowess" = "red","Conditional NP" = "blue"),
-#                     name = "NP Regression Type") +
-#  theme_minimal()  # Use a clean theme
-
-
-
-```
-
-
-```{r ghs-loess-plot, dependson="ghs; np-plot", fig.cap = "Nonparametric regression plot and data points: log reported minimum income against log reported income (GHS 2023).",}
-
-# np plot data and fit values for plots
-lnminq.eval <- fitted(ghs.plot.out$r1)
-lnmq.se <- se(ghs.plot.out$r1)
-lower.ci <- lnminq.eval + lnmq.se[,1]
-upper.ci <- lnminq.eval + lnmq.se[,2]
-lny.eval <- ghs.plot.out$r1$eval[,1]
-
-
-## loess estimation and data for plotting
-# putting into ggplot is a bit messy here
-lnydf <- data.frame(lny = seq(2.5,13.5,0.25))
-# loess span does not seem to matter much, 
-# it is the (additional) conditioning that matters
-lnminq.lo <- loess(lnminq ~ lny, span = 0.6, data = ghs2023)
-predict.lo <- predict(lnminq.lo, lnydf, se = TRUE)
-lo.lny.eval <- lnydf$lny
-lo.lnminq.eval <- predict.lo$fit
-lo.lower.ci <- predict.lo$fit - 1.96*predict.lo$se.fit
-lo.upper.ci <- predict.lo$fit + 1.96*predict.lo$se.fit
-
-lnydata <- ghs2023$lny
-lnminqdata <- ghs2023$lnminq
-
-plot(lnydata, lnminqdata, type = "p", col = "bisque",
-     xlab = "Log of Monthly Income (lny)",
-     ylab = "Log of Minimum Income (lnminq)",
-     xlim = c(5,12))
-lines(lo.lny.eval, lo.lnminq.eval, lwd = 2, lty = 1, col ="red")
-lines(lo.lny.eval, lo.lower.ci, lwd = 1, lty = 2, col ="red")
-lines(lo.lny.eval, lo.upper.ci, lwd = 1, lty = 2, col ="red")
-lines(lny.eval, lnminq.eval, lwd = 2, lty = 1, col ="blue")
-lines(lny.eval, lower.ci, lwd = 1, lty = 2, col ="blue")
-lines(lny.eval, upper.ci, lwd = 1, lty = 2, col ="blue")
-abline(a=0, b=1, col = "green", lwd = 2, lty = 3)
-legend("bottomright",
-       lty = c(1,1,3),
-       lwd = c(2,2,2),
-       col = c("red","blue","green"),
-       c("Loess Fit and CI",
-         "Conditional NP Fit and CI",
-         "45 degree line"))
-
-#main.df %>% ggplot(aes(x = lny, y = lnminq)) +
-#  geom_point(alpha = 0.4, color = "bisque", shape = 1) +  
-  #scale_shape(solid = FALSE) + 
-#  geom_smooth(method = "loess", color = "red", se = TRUE) +  
-#  labs(
-   # title = "Loess regressiob plot of lo vs. lny",
-#    x = "Log of Monthly Income (lny)",
-#    y = "Log of Minimum Income (lnminq)"
-#  ) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lnminq.eval),colour = "blue",
-#            linetype="solid", linewidth = 2) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=lower.ci),colour = "blue",
-#            linetype="dashed", linewidth = 1) +
-#  geom_line(data=np.ggplot.df,aes(x=lny.eval,y=upper.ci),colour = "blue",
-#            linetype="dashed", linewidth = 1) +
-#  scale_color_manual(values = c("Lowess" = "red","Conditional NP" = "blue"),
-#                     name = "NP Regression Type") +
-#  theme_minimal()  # Use a clean theme
-
-
-
-```
-
 In these figures, we see some evidence that the additional controls affect the relationship, although the slopes of both curves are fairly similar in each figure. Both figures also include the 45$^\circ$ line. Comparing across the two figures, the intersection of the curves with that 45$^\circ$ line - which underpins the estimation of poverty lines - occurs at lower values in 2014-15 relative to 2023. Below, we see whether that change in intersection affects the subjective poverty lines.
 
-```{r linear-models, dependson="lcs"}
+```{r model-formulas}
+
+ysmooth <- formula(minq ~ y.month + adults + kids +  age + age.sq +
+                    hhh.male + ethnic + province + settle +
+                    marital + education + month + grants)
+
+sdummy <- formula(minq ~ y.month + k1 + k2 + k3 + k4 + 
+                    a2 + a3 + a4 + a5 + a6 +  age + age.sq +
+                    hhh.male + ethnic + province + settle +
+                    marital + education + month + grants)
+
+quad <- formula(minq ~ y.month + y2.month + adults + kids +  
+                  age + age.sq +hhh.male + ethnic + province + 
+                  settle + marital + education + month + grants)
+
+qdummy <- formula(minq ~ y.month + y2.month + k1 + k2 + k3 + k4 + 
+                    a2 + a3 + a4 + a5 + a6 +  age + age.sq +
+                    hhh.male + ethnic + province + settle +
+                    marital + education + month + grants)
+
+```
+
+
+```{r linear-models, dependson="lcs; model-formulas"}
 
 ## dummy rows for squared term..
 ddr1 <- tibble(n="lny.sq",results = NA)
 ddr2 <- tibble(n="lny.sq",results = NA)
 ddr <- rbind(ddr1, ddr2)
 
-base.data <- lcs2014 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+base.data <- lcs2014 
 
-lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
-                       hhh.male + ethnic + province + settle +
-                       marital + education + month + grants,
-                    data=base.data)
+lineary_smooth <- lm(ysmooth,
+                     data=base.data)
 lineary_smooth_tab <- ctab(lineary_smooth, 
                            cluster = lcs2014$psu)[1:8,c(1,3)]
 lysmooth_tab <- rbind(lineary_smooth_tab[1:4,],
@@ -848,10 +701,7 @@ lysmooth_tab <- rbind(lineary_smooth_tab[1:4,],
 lcs_ly_smooth_tab <- ctab(lineary_smooth, 
                            cluster = lcs2014$psu)
 
-lineary_dummies <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
-                        a2 + a3 + a4 + a5 + a6 +  age + age.sq +
-                        hhh.male + ethnic + province + settle +
-                        marital + education + month + grants,
+lineary_dummies <- lm(sdummy,
                      data=base.data)
 lineary_dummies_tab <- ctab(lineary_dummies, 
                            cluster = lcs2014$psu)[1:22,3]
@@ -861,20 +711,15 @@ lydum_tab <- rbind(lineary_dummies_tab[1:4,],
 lcs_ly_dummies_tab <- ctab(lineary_dummies, 
                            cluster = lcs2014$psu)
 
-quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
-                         ethnic + province + settle + marital + education +
-                       month + grants,
+quadraticy_smooth <- lm(quad,
                        data=base.data)
 quadraticy_smooth_tab <- ctab(quadraticy_smooth, 
                            cluster = lcs2014$psu)[1:10,3] 
 lcs_qy_smooth_tab <- ctab(quadraticy_smooth, 
                            cluster = lcs2014$psu)
 
-quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + k3 + k4 + 
-                          a2 + a3 + a4 + a5 + a6 +  age + age.sq + hhh.male + 
-                          ethnic + province + settle + marital + education+
-                       month + grants,
-                        data=base.data)
+quadraticy_dummies <- lm(qdummy,
+                         data=base.data)
 quadraticy_dummies_tab <- ctab(quadraticy_dummies, 
                            cluster = lcs2014$psu)[1:24,3]
 lcs_qy_dummies_tab <- ctab(quadraticy_dummies, 
@@ -940,19 +785,15 @@ all_qdum <- linearHypothesis(quadraticy_dummies,
 
 ```
 
-```{r linear-models-ghs, dependson="ghs"}
+```{r linear-models-ghs, dependson="ghs;model-formulas"}
 ## dummy rows for squared term..
-ddr1 <- tibble(n="lny.sq",results = NA)
-ddr2 <- tibble(n="lny.sq",results = NA)
+ddr1 <- tibble(n="y2.month",results = NA)
+ddr2 <- tibble(n="y2.month",results = NA)
 ddr <- rbind(ddr1, ddr2)
 
-base.data <- ghs2023 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+base.data <- ghs2023 
 
-lineary_smooth <- lm(lnminq ~ lny + ao + ko +  age + age.sq +
-                       hhh.male + ethnic + province + settle +
-                       marital + education +month + grants,
+lineary_smooth <- lm(ysmooth,
                      data=base.data)
 lineary_smooth_ghs <- ctab(lineary_smooth, 
                            cluster = ghs2023$psu)[1:8,c(1,3)]
@@ -962,11 +803,7 @@ lysmooth_ghs <- rbind(lineary_smooth_ghs[1:4,],
 ghs_ly_smooth_tab <- ctab(lineary_smooth, 
                            cluster = ghs2023$psu)
 
-lineary_dummies <- lm(lnminq ~ lny + k1 + k2 + k3 + k4 + 
-                        a2 + a3 + a4 + a5 + a6 +  age + 
-                        age.sq + hhh.male + ethnic + province +
-                        settle + marital + education +
-                        month + grants,
+lineary_dummies <- lm(sdummy,
                       data=base.data)
 lineary_dummies_ghs <- ctab(lineary_dummies, 
                            cluster = ghs2023$psu)[1:22,3]
@@ -976,23 +813,14 @@ lydum_ghs <- rbind(lineary_dummies_ghs[1:4,],
 ghs_ly_dummies_tab <- ctab(lineary_dummies, 
                            cluster = ghs2023$psu)
 
-quadraticy_smooth <- lm(lnminq ~ lny + lny.sq + ao + ko +  
-                          age + age.sq + hhh.male + 
-                          ethnic + province + settle + 
-                          marital + education +
-                          month + grants,
+quadraticy_smooth <- lm(quad,
                         data=base.data)
 quadraticy_smooth_ghs <- ctab(quadraticy_smooth, 
                            cluster = ghs2023$psu)[1:10,3] 
 ghs_qy_smooth_tab <- ctab(quadraticy_smooth, 
                            cluster = ghs2023$psu)
 
-quadraticy_dummies <- lm(lnminq ~ lny + lny.sq + k1 + k2 + 
-                           k3 + k4 + a2 + a3 + a4 + a5 + 
-                           a6 +  age + age.sq + hhh.male + 
-                           ethnic + province + settle + 
-                           marital + education+
-                           month + grants,
+quadraticy_dummies <- lm(qdummy,
                          data=base.data)
 quadraticy_dummies_ghs <- ctab(quadraticy_dummies, 
                            cluster = ghs2023$psu)[1:24,3]
@@ -1060,54 +888,47 @@ all_qdum <- linearHypothesis(quadraticy_dummies,
 
 
 ```{r basemodel, dependson="lcs;ghs"}
-lcs_data <- lcs2014 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+lcs_data <- lcs2014 
 
-ghs_data <- ghs2023 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+ghs_data <- ghs2023 
 
-model_formula <- formula(lnminq ~ lny + ao + ko +  age + age.sq +
-                  hhh.male + ethnic + province + settle +
-                  marital + education + month + grants)
 
-lcs_model <- lm(model_formula,
+lcs_model <- lm(ysmooth,
                 data=lcs_data)
 
-ghs_model <- lm(model_formula,
+ghs_model <- lm(ysmooth,
                 data=ghs_data)
 
 
-lcs_kids <- coef(lcs_model)["ko"]
-ghs_kids <- coef(ghs_model)["ko"]
+lcs_kids <- coef(lcs_model)["kids"]
+ghs_kids <- coef(ghs_model)["kids"]
 
-lcs_adults <- coef(lcs_model)["ao"]
-ghs_adults <- coef(ghs_model)["ao"]
+lcs_adults <- coef(lcs_model)["adults"]
+ghs_adults <- coef(ghs_model)["adults"]
 
-lcs_inc <- coef(lcs_model)["lny"]
-ghs_inc <- coef(ghs_model)["lny"]
+lcs_inc <- coef(lcs_model)["y.month"]
+ghs_inc <- coef(ghs_model)["y.month"]
 ```
 
 
-```{r exog-quantiles, dependson="basemodel"}
+```{r exog-quantiles, dependson="model-formulas"}
 
 taus <- seq(0.01,0.95,0.01)
 
 # Estimate quantile regressions for each tau
-lcs_fit <- rq(model_formula, 
+# smooth adults/kids
+lcs_fit <- rq(ysmooth, 
               data = lcs_data, tau = taus)
-#summary(fit, se = "boot")
-#summary(fit)[c(1,20)]
 
-lcs_tidy_fit <- tidy(lcs_fit, conf.int = TRUE, conf.level = 0.95)
+lcs_tidy_fit <- tidy(lcs_fit, conf.int = FALSE, conf.level = 0.95)
 
-ghs_fit <- rq(model_formula, 
+
+ghs_fit <- rq(ysmooth, 
               data = ghs_data, tau = taus)
 #summary(fit, se = "boot")
 #summary(fit)[c(1,20)]
 
-ghs_tidy_fit <- tidy(ghs_fit, conf.int = TRUE, conf.level = 0.95)
+ghs_tidy_fit <- tidy(ghs_fit, conf.int = FALSE, conf.level = 0.95)
 ```
 
 
@@ -1122,8 +943,8 @@ Before calculating the subjective poverty lines, we present the main household s
 # Goal is just to show if this really matters..
 # Effect sizes...
 
-smooth.tab.names <- c("Intercept","","Log Income", "",
-                      "Squared Log Income","",
+smooth.tab.names <- c("Intercept","","Income", "",
+                      "Squared Income","",
                       "Adults in hh", "", 
                       "Children in hh","")
 smooth.tab <- tibble(rnames = smooth.tab.names, 
@@ -1132,8 +953,8 @@ smooth.tab <- tibble(rnames = smooth.tab.names,
                      ly23 = lysmooth_ghs$results, 
                      qy23 = quadraticy_smooth_ghs$results)
 
-dummies.tab.names <- c("Intercept","","Log Income", "",
-                      "Squared Log Income","",
+dummies.tab.names <- c("Intercept","","Income", "",
+                      "Squared Income","",
                       "One child","","Two children","",
                       "Three children","", "Four children","",
                        "Two adults","", "Three adults","",
@@ -1169,58 +990,43 @@ kable(results.tab, format = "latex", align='lrrrr',
 ## Subjectively poor vs NT objectively poor?
 
 
-```{r lineary-spl-smooth, dependson="lcs-sub; lcs"}
+```{r lineary-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
 
-base.data <- lcs2014 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)-1)
+base.data <- lcs2014 
 
-model <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education +
-                       month + grants,
+model <- lm(ysmooth,
             data=base.data)
 
 b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
 b1 <- b[3:4]          # just the kids and adult bit
 denom <- 1-b[2]
 
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)) %>%
+dfdiff <- akmat %>% dplyr::select(adults, kids) %>%
   as.matrix()
 
-spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
 
 spl.lin.yall <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
   add_column(spl.linear = as.integer(spl.base)) 
 
 spl.lin.yall.table <- spl.lin.yall %>%
-  rename("spl" = "spl.linear") %>%
-  dplyr::select(-c(ao,ko))
+  rename("spl" = "spl.linear") 
 
 ```
 
 
-```{r quady-spl-smooth, dependson="lcs-sub; lcs"}
+```{r quady-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
 
-base.data <- lcs2014 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)-1)
+base.data <- lcs2014 
 
-model <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq +
-              hhh.male + ethnic + province + settle + 
-              marital + education + month + grants,
+model <- lm(quad,
             data=base.data)
 
 b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
 b1 <- b[4:5]          # just the kids and adult bit
 
 
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)) %>%
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>%
   as.matrix()
 
 # This calculates for all household types at once... but no real roots?
@@ -1235,71 +1041,55 @@ root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
 root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
 
 # do not understand why not working?
-spl.base <-  exp( root2 )
+spl.base <-   root2 
 
 spl.quad.yall <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  dplyr::select(adults,kids) %>%
   add_column(spl.quad = as.integer(spl.base))
 
 spl.quad.yall.table <- spl.quad.yall %>%
-  rename("spl" = "spl.quad") %>%
-  dplyr::select(-c(ao,ko))
+  rename("spl" = "spl.quad") 
 ```
 
 
 
-```{r lineary-spl-smooth-ghs, dependson="lcs-sub; ghs"}
+```{r lineary-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
 
-base.data <- ghs2023 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko))
+base.data <- ghs2023 
 
-model <- lm(lnminq ~ lny + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education +
-              month + grants,
+model <- lm(ysmooth,
             data=base.data)
 
 b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
 b1 <- b[3:4]          # just the kids and adult bit
 denom <- 1-b[2]
 
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)-1) %>%
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
   as.matrix()
 
-spl.base <-  exp( (b[1] + (dfdiff %*% b1)) * (1/denom) )
+spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
 
 spl.lin.yall.2023 <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  dplyr::select(adults,kids) %>%
   add_column(spl.linear = as.integer(spl.base)) 
 
 spl.lin.yall.table.2023 <- spl.lin.yall.2023 %>%
-  rename("spl" = "spl.linear") %>%
-  dplyr::select(-c(ao,ko))
+  rename("spl" = "spl.linear") 
 
 ```
 
-```{r quady-spl-smooth-ghs, dependson="lcs-sub; ghs"}
+```{r quady-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
 
-base.data <- ghs2023 %>%
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)-1)
+base.data <- ghs2023 
 
-model <- lm(lnminq ~ lny + lny.sq + ao + ko +  age + age.sq + hhh.male + 
-              ethnic + province + settle + marital + education +
-              month + grants,
+model <- lm(quad,
             data=base.data)
 
 b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
 b1 <- b[4:5]          # just the kids and adult bit
 
 
-dfdiff <- akmat %>% dplyr::select(ao,ko) %>% 
-  mutate(ao = as.numeric(ao),
-         ko = as.numeric(ko)) %>%
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
   as.matrix()
 
 # This calculates for all household types at once... but no real roots?
@@ -1314,32 +1104,31 @@ root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
 root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
 
 # do not understand why not working?
-spl.base <-  exp( root2 )
+spl.base <-   root2 
 
 spl.quad.yall.2023 <- akmat %>%
-  dplyr::select(ao,ko) %>%
-  mutate(adults = as.integer(ao), kids = as.integer(ko)-1) %>%
+  dplyr::select(adults,kids) %>%
   add_column(spl.quad = as.integer(spl.base))
 
 spl.quad.yall.table.2023 <- spl.quad.yall.2023 %>%
-  rename("spl" = "spl.quad") %>%
-  dplyr::select(-c(ao,ko))
+  rename("spl" = "spl.quad") 
 ```
 
 
 ```{r poor-data, dependson="lcs; lineary-spl-smooth; quady-spl-smooth", results="asis"}
 
+
 # This builds out a simple table...
 # How do we want to use this?
 poor.data <- left_join(lcs2014, spl.lin.yall,
-                       by = c("ao","ko")) %>%
-  left_join(spl.quad.yall, by = c("ao","ko")) %>%
-  mutate(hhsize = as.numeric(ao) + as.numeric(ko),
+                       by = c("adults","kids")) %>%
+  left_join(spl.quad.yall, by = c("adults","kids")) %>%
+  mutate(hhsize = adults + kids,
          lbpoverty = hhsize * 647,
          ubpoverty = hhsize * 992,
-         y = exp(lny),
-         x = exp(lnx)) %>%
-  group_by(ao,ko) %>%
+         y = y.month,
+         x = x.month) %>%
+  group_by(adults,kids) %>%
   summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
             lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
             quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
@@ -1347,6 +1136,8 @@ poor.data <- left_join(lcs2014, spl.lin.yall,
             obj.poor.ub = round(100*sum(y < ubpoverty)/n(),2)) %>%
   ungroup() 
 
+  #
+  
 kable(poor.data, format = "latex", align='rrrrrrr',
       row.names = F,
       booktabs=TRUE, escape=FALSE, longtable=TRUE,
@@ -1366,13 +1157,13 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 # This builds out a simple table...
 # How do we want to use this?
 poor.data <- left_join(ghs2023, spl.lin.yall.2023,
-                       by = c("ao","ko")) %>%
-  left_join(spl.quad.yall.2023, by = c("ao","ko")) %>%
-  mutate(hhsize = as.numeric(ao) + as.numeric(ko),
+                       by = c("adults","kids")) %>%
+  left_join(spl.quad.yall.2023, by = c("adults","kids")) %>%
+  mutate(hhsize = adults + kids,
          lbpoverty = hhsize * 1058,
          ubpoverty = hhsize * 1558,
-         y = exp(lny)) %>%
-  group_by(ao,ko) %>%
+         y = y.month) %>%
+  group_by(adults,kids) %>%
   summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
             lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
             quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
@@ -1395,13 +1186,11 @@ kable(poor.data, format = "latex", align='rrrrrrr',
 
 # Sensitivity
 
-```{r lcs_hetiv, dependson="lcs"}
+```{r lcs_hetiv, dependson="lcs; model-formulas"}
 
 lcs_data <- lcs2014 
 
-lcs_base <- lm(lnminq ~ lny + adults + kids +  age + age.sq +
-                 hhh.male + ethnic + province + settle +
-                 marital + education + month + grants,
+lcs_base <- lm(ysmooth,
                data=lcs_data)
 # Cluster-robust vcov
 vcov_cluster <- vcovCL(lcs_base, cluster = lcs_data$psu)
@@ -1423,11 +1212,11 @@ one_beta = 1-tidy_base$estimate[2]
 k0 = theta/one_beta
 a0 = phi/one_beta
 
-lcs_kidiv <- hetErrorsIV(lnminq ~ lny + adults +  age + 
+lcs_kidiv <- hetErrorsIV(minq ~ y.month + adults +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
                            grants + kids | kids | 
-                           IIV(age, grants, lny),
+                           IIV(age, grants, y.month),
                          data=lcs_data, 
                          verbose = FALSE)
 # Cluster-robust vcov
@@ -1439,7 +1228,7 @@ tidy_kids <- tidy(ct)
 
 kk = which(tidy_kids$term=="kids")
 aa = which(tidy_kids$term=="adults")
-yy = which(tidy_kids$term=="lny")
+yy = which(tidy_kids$term=="y.month")
 
 theta = tidy_kids$estimate[kk]
 #ifelse(tidy_kids$p.value[kk] > 0.05,
@@ -1454,11 +1243,11 @@ one_beta = 1-tidy_kids$estimate[yy]
 k1 = theta/one_beta
 a1 = phi/one_beta
 
-lcs_adiv <- hetErrorsIV(lnminq ~ lny + kids +  age + 
+lcs_adiv <- hetErrorsIV(minq ~ y.month + kids +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
                            grants + adults | adults | 
-                           IIV(age, grants, lny),
+                           IIV(age, grants, y.month),
                          data=lcs_data, 
                          verbose = FALSE)
 # Cluster-robust vcov
@@ -1470,7 +1259,7 @@ tidy_adults <- tidy(ct)
 
 kk = which(tidy_adults$term=="kids")
 aa = which(tidy_adults$term=="adults")
-yy = which(tidy_adults$term=="lny")
+yy = which(tidy_adults$term=="y.month")
 
 theta = tidy_adults$estimate[kk]
 #ifelse(tidy_kids$p.value[kk] > 0.05,
@@ -1488,8 +1277,8 @@ a2 = phi/one_beta
 lcs_lnyiv <- hetErrorsIV(lnminq ~ adults + kids +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
-                           grants + lny | lny | 
-                           IIV(age, grants) | lnx,
+                           grants + y.month | y.month | 
+                           IIV(age, grants) | x.month,
                          data=lcs_data, 
                          verbose = FALSE)
 
@@ -1523,7 +1312,7 @@ k = cbind(k0,k1,k2,k3)
 lcs_tab = rbind(a,k)
 ```
 
-```{r ghs_hetiv, dependson="ghs"}
+```{r ghs_hetiv, dependson="ghs; model-formulas"}
 
 ghs_data <- ghs2023 %>%
   # categorical "x" values, not really useful as CF
@@ -1531,9 +1320,7 @@ ghs_data <- ghs2023 %>%
 #%>%
  # filter(lnx < 13)
 
-ghs_base <- lm(lnminq ~ lny + adults + kids +  age + age.sq +
-                 hhh.male + ethnic + province + settle +
-                 marital + education + month + grants,
+ghs_base <- lm(ysmooth,
                data=ghs_data)
 # Cluster-robust vcov
 vcov_cluster <- vcovCL(ghs_base, cluster = ghs_data$psu)
@@ -1555,11 +1342,11 @@ one_beta = 1-tidy_base$estimate[2]
 k0 = theta/one_beta
 a0 = phi/one_beta
 
-ghs_kidiv <- hetErrorsIV(lnminq ~ lny + adults +  age + 
+ghs_kidiv <- hetErrorsIV(minq ~ y.month + adults +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
                            grants + kids | kids | 
-                           IIV(age, grants, lny),
+                           IIV(age, grants, y.month),
                          data=ghs_data, 
                          verbose = FALSE)
 # Cluster-robust vcov
@@ -1571,7 +1358,7 @@ tidy_kids <- tidy(ct)
 
 kk = which(tidy_kids$term=="kids")
 aa = which(tidy_kids$term=="adults")
-yy = which(tidy_kids$term=="lny")
+yy = which(tidy_kids$term=="y.month")
 
 theta = tidy_kids$estimate[kk]
 #ifelse(tidy_kids$p.value[kk] > 0.05,
@@ -1586,11 +1373,11 @@ one_beta = 1-tidy_kids$estimate[yy]
 k1 = theta/one_beta
 a1 = phi/one_beta
 
-ghs_adiv <- hetErrorsIV(lnminq ~ lny  + kids +  age + 
+ghs_adiv <- hetErrorsIV(minq ~ y.month  + kids +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
                            grants + adults | adults | 
-                           IIV(age, grants, lny),
+                           IIV(age, grants, y.month),
                          data=ghs_data, 
                          verbose = FALSE)
 # Cluster-robust vcov
@@ -1602,7 +1389,7 @@ tidy_adults <- tidy(ct)
 
 kk = which(tidy_adults$term=="kids")
 aa = which(tidy_adults$term=="adults")
-yy = which(tidy_adults$term=="lny")
+yy = which(tidy_adults$term=="y.month")
 
 theta = tidy_adults$estimate[kk]
 #ifelse(tidy_adults$p.value[kk] > 0.05,
@@ -1620,8 +1407,8 @@ a2 = phi/one_beta
 ghs_lnyiv <- hetErrorsIV(lnminq ~  adults + kids +  age + 
                            age.sq + hhh.male + ethnic + province +
                            settle + marital + education + month +
-                           grants + lny | lny | 
-                           IIV(age, grants) ,
+                           grants + y.month | y.month | 
+                           IIV(age, grants, x) ,
                          data=ghs_data, 
                          verbose = FALSE)
 
@@ -1703,7 +1490,7 @@ In an additional follow-up, we estimated a series of quantile models. Importantl
 
 # lcs
 lcs_tidy_fit %>%
-  filter(term == "ko") %>%
+  filter(term == "kids") %>%
 ggplot(aes(x = tau, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
               fill = "skyblue", alpha = 0.4) +
@@ -1719,7 +1506,7 @@ ggplot(aes(x = tau, y = estimate)) +
 
 #plot_drinker <- 
 ghs_tidy_fit %>%
-  filter(term == "ko") %>%
+  filter(term == "kids") %>%
 ggplot(aes(x = tau, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
               fill = "skyblue", alpha = 0.4) +
@@ -1742,7 +1529,7 @@ As can be implied from the figures, there are nonlinearities in the underlying r
 
 # lcs
 lcs_tidy_fit %>%
-  filter(term == "ao") %>%
+  filter(term == "adults") %>%
 ggplot(aes(x = tau, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
               fill = "skyblue", alpha = 0.4) +
@@ -1758,7 +1545,7 @@ ggplot(aes(x = tau, y = estimate)) +
 
 #plot_drinker <- 
 ghs_tidy_fit %>%
-  filter(term == "ao") %>%
+  filter(term == "adults") %>%
 ggplot(aes(x = tau, y = estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
               fill = "skyblue", alpha = 0.4) +
@@ -1817,7 +1604,7 @@ ggplot(aes(x = tau, y = estimate)) +
 ```{r quant-tab, dependson="exog-quantiles", results="asis"}
 
 coef_subset <- lcs_tidy_fit %>%
-  filter(term %in%  c("ao","ko","lny"), 
+  filter(term %in%  c("adults","kids","lny"), 
          tau %in% c(0.2, 0.4, 0.6, 0.8)) %>%
   dplyr::select(tau,term,estimate) %>%
   pivot_wider(
@@ -1827,12 +1614,12 @@ coef_subset <- lcs_tidy_fit %>%
 
 lcs_change <- coef_subset %>%
   transmute(#tau,
-            dlny_da = ao/(1-lny),
-            dlny_dk = ko/(1-lny)) %>%
+            dlny_da = adults/(1-lny),
+            dlny_dk = kids/(1-lny)) %>%
   t()
 
 coef_subset <- ghs_tidy_fit %>%
-  filter(term %in%  c("ao","ko","lny"), 
+  filter(term %in%  c("adults","kids","lny"), 
          tau %in% c(0.2, 0.4, 0.6, 0.8)) %>%
   dplyr::select(tau,term,estimate) %>%
   pivot_wider(
@@ -1842,8 +1629,8 @@ coef_subset <- ghs_tidy_fit %>%
 
 ghs_change <- coef_subset %>%
   transmute(#tau,
-            dlny_da = ao/(1-lny),
-            dlny_dk = ko/(1-lny)) %>%
+            dlny_da = adults/(1-lny),
+            dlny_dk = kids/(1-lny)) %>%
   t()
 
 change_tab <- rbind(lcs_change,
@@ -1906,8 +1693,8 @@ All <- lcs2014 %>%
      lny < lnminq ~ "Too little",
      lny >= lnminq ~ "Enough"
   )),
-  adults = as.numeric(ao),
-  kids = as.numeric(ko)) %>%
+  adults = as.numeric(adults),
+  kids = as.numeric(kids)) %>%
   droplevels()
 
 
@@ -1988,8 +1775,8 @@ All <- ghs2023 %>%
       lny < lnminq ~ "Too little",
       lny >= lnminq ~ "Enough"
     )),
-    adults = as.numeric(ao),
-    kids = as.numeric(ko)) %>%
+    adults = as.numeric(adults),
+    kids = as.numeric(kids)) %>%
   droplevels()
 
 
@@ -2128,7 +1915,7 @@ ghsly_tab <- ghsly[c(3:22,83:84),]
 #lcs_qy_smooth_tab 
 ghsqy_tab <- ghs_qy_smooth_tab[c(3:22,83:84),]
 
-smooth.tab.names <- c("Log income","","Squared log income", "",
+smooth.tab.names <- c("Income","","Squared log income", "",
         "Adults in HH","", "Kids in HH","",
         "Age of HH Head","", "Squared age of head","",
         "Female head","", "Coloured head","",
@@ -2186,7 +1973,7 @@ ghsly_tab <- ghsly[c(3:36,97:98),,]
 #lcs_qy_dummies_tab 
 ghsqy_tab <- ghs_qy_dummies_tab[c(3:36,97:98),]
 
-dummies.tab.names <- c("Log income","","Squared log income", "",
+dummies.tab.names <- c("Income","","Squared log income", "",
                        "One child","","Two children","",
                        "Three children","","Four children","",
                        "Two adults","", "Three adults","",
