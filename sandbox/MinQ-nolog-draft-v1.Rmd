@@ -1,10 +1,10 @@
 ---
-title: "Minimum income and subjective poverty lines"
-subtitle: "A comparison following a period of sluggish economic growth"
+title: "Required minimum income and subjective poverty lines"
+subtitle: "Estimates and comparisons from 2014 to 2023"
 author: 
   - "Steven F. Koch^[Corresponding author: Department of Economics, University of Pretoria, Private Bag X20, Hatfield, South Africa; +27-12-420-5285; steve.koch@up.ac.za]"
   - "Bernice Macquela^[Department of Economics, University of Pretoria]"
-thanks: The authors would like to thank someone for their comments and suggestions. Any remaining issues rest with the authors.
+thanks: We would like to thank participants in the applied microeconomics seminar at the same university for their comments and suggestions. Some of the preliminary work for this project is incorporated in Bernice's Master's research at the University of Pretoria [@Macquela2024Thesis]. 
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   bookdown::pdf_document2: 
@@ -25,7 +25,7 @@ header-includes:
     - \usepackage{subfig}
     - \usepackage{threeparttablex}
     - \usepackage{longtable}
-abstract: \singlespacing We use minimum income questions to examine subjective poverty in South Africa, comparing outcomes in 2014 to outcomes in 2023. 
+abstract: \singlespacing This research uses minimum income questions to estimate subjective poverty lines and examine subjective poverty rates, relative to objective poverty rates in South Africa. Comparisons of these lines and rates are undertaken over the period 2014 to 2023, based on two different nationally representative surveys. We find that subjective poverty lines per adult and child increased between 2014 and 2023. We also find per capita subjective values in-line with South Africa's upper bound money-metric poverty line in 2023, but not for 2014. Furthermore, if the 2014 estimates are adjusted to account for inflation, they would be larger than both the subjective povery lines estimated for 2023 in many cases. Despite some similarities, we also find that the subjective/objective poverty rates do not coincide for any year or any household type, suggesting more work is needed to develop a poverty line that is consistent by household type at any point in time, and preferably, over time.
 ---
 
 <!--
@@ -81,6 +81,7 @@ library(qwraps2)
 library(stargazer)
 library(MASS)
 library(broom)
+library(purrr)
 
 par(family = 'mono')
 
@@ -518,145 +519,105 @@ save(ghs2023, file = "../ghs2023/ghs2023-v2.Rdata")
 
 # Introduction
 
-The measurement of poverty and inequality is a point of focus for economists and policymakers, especially those based in countries like South Africa, where poverty rates are high and income disparities are stark [@leibbrandtetal2012]. In determining poverty rates, the method employed by Statistics South Africa is money-metric, where they set three primary thresholds: an upper-bound, lower-bound and food poverty line [@StatsSA2021PovertyLines]. These lines are constructed using the cost-of-basic-needs approach, which links welfare to the consumption of goods and services. Money-metric measures, such as these, underscore the statistical measurement of poverty.
+The measurement of poverty and inequality is a point of focus for economists and policymakers, especially those based in countries like South Africa, where poverty rates are high and income disparities are stark [@leibbrandtetal2012]. In determining poverty rates, the method employed by Statistics South Africa is money-metric, where they set three primary thresholds: an upper-bound, lower-bound and food poverty line [@StatsSA2021PovertyLines]. @budlenderetal2015 suggest an upper bound that is about 25% higher than the one used by Statistics South Africa at the time [@StatsSA2015PovertyLines]. These poverty lines are constructed using the cost-of-basic-needs approach [@r98], which links welfare to the consumption of goods and services. 
 
-However, @Seekings07 and @MethDias04, for example, argue that poverty measures based on income and expenditure ignore the non-income components of living standards. Others argue that money-metric measures ignore fluctuations related to differences in household size and other factors within a household [@poseletal2020; @RavallionLokshin01; @zwane18]. Additionally, money-metric measures may inaccurately assess the degree of poverty, if the income/expenditures used do not align with appropriate aspects of living standards [@poselrogan2016]. Thus, intuitively, it is important to consider individual or household differences in characteristics that are likely to affect needs, e.g., household size and composition, regional cost of living, and subjective perceptions [@Daleyetal20]. @megbowan18 offer some discussion of regional variation within the Eastern Cape of the country, although the focus was not on potential economies of scale that might arise at the level of the household.
+However, @Seekings07 and @MethDias04, for example, argue that poverty measures based on income and expenditure ignore the non-income components of living standards. Others argue that money-metric measures ignore fluctuations related to differences in household size and other factors within a household [@poseletal2020; @RavallionLokshin01; @zwane18]. Additionally, money-metric measures may inaccurately assess the degree of poverty, if the income/expenditures used do not align with appropriate aspects of living standards [@poselrogan2016]. Intuitively, individual or household differences in characteristics  are likely to affect needs, e.g., household size and composition, regional cost of living, and subjective perceptions are plausibly different [@Daleyetal20]. @megbowan18 offers some discussion of regional variation within the Eastern Cape, although the focus was not on potential economies of scale that might arise at the level of the household.
 
-An alternative is to employ a subjective income poverty approach, underpinned by the “happiness and economics” literature [@Ravallion14, @Ferreretal03]. This subjective approach uses responses to a minimum income question (MIQ) or similar, assessing individuals’ perceptions of the minimum required (net) income for an acceptable standard of living [@Goedhartetal1977]. Minimum income questions may highlight disparities that objective measures might miss [@RavallionLokshin01]. Furthermore, answers to such questions can be considered across a range of additional factors -- family type, size and geographic location -- that might relate to responses [@bdmnpwz17; @wzbzy20]. The ability to control for additional correlates deepens our understanding of the roles and robustness of various determinants of poverty; it can also help us detect policy focal points [@do13]. 
+An alternative is to employ a subjective income poverty approach, underpinned by the “happiness and economics” literature [@Ravallion14; @Ferreretal03]. This approach might use responses to a minimum income question (MIQ), or similar, assessing individuals’ perceptions of the minimum required (net) income for an acceptable standard of living [@Goedhartetal1977]. Minimum income questions may highlight disparities that objective measures miss [@RavallionLokshin01]. Furthermore, answers to such questions can be dissected across a range of additional factors -- family type, size and geographic location -- that might relate to responses [@bdmnpwz17; @wzbzy20]. The ability to control for additional correlates deepens our understanding of the roles and robustness of various determinants of poverty; it can also help us detect policy focal points [@do13]. 
 
-Although research into subjective well-being is common in South Africa, the estimation of subjective poverty lines is less so. @posel2014 considers individual subjective well-being, while @poselrogan2016 focus on the household. Each of these analyses are founded on ladder-type questions (where respondents rank their living conditions as being representative of very poor to wealthy or they rate their satisfaction with life from very dissatisfied to very satisfied). @poselrogan2019, as far as we know, are the only ones to use MIQ in their analysis, although they used the MIQ to represent income aspirations, i.e., the level of income households aspired to reach. They further examined how reported minimum income correlated with a range of household characteristics, including objective/subjective measures of economic standing and their district's local economic conditions. In a related literature, @koch2022 estimates objective equivalence scales from expenditure shares, while @koch2023 estimates subjective equivalence scales from consumption adequacy questions. Poverty lines could easily be derived from the same methods used to derive equivalence scales; however, neither @koch2022 nor @koch2023 present those estimates. 
+Although research into subjective well-being is common in South Africa, the estimation of monetary subjective poverty lines is less so. Possibly, subjective poverty lines are not commonly estimated, due to  a range of complications/criticisms. A list of which certainly includes reference effects [@borahetal2019] or other endogeneities related to actual income and/or household formation. Additional concerns relate to the meaning of "income" [@pradhanravallion2000; @Lokshin2006Madagascar] or other cognitive issues associated with hypothetical situations. See, for example, @bradbury1989, @melenbergvansoest1996 and @steigeretalproceedings.
 
-Possibly, subjective poverty lines are not commonly estimated, due to  a range of complications/criticisms. A list of which certainly includes reference effects and potential endogeneities related to, for example, actual income and/or household formation. Another concern is the practicality of money-metric measures, when poverty might be better understood as a complex set of capabilities or better measured through multidimensional deprivation indexes. Additional concerns relate to potential difficulties that might be associated with the meaning of  "income" [@pradhanravallion2000] or other cognitive difficulties associated with hypothetical situations; see, for example, @bradbury1989, @melenbergvansoest1996 and @steigeretalproceedings.
+@budlenderetal2015 offer a different reason, suggesting that the extraction of a monetary measure of a subjective poverty line is difficult in such analyses. Certainly, it is not obvious how one might extract a single line (per household type) from the Socially Perceived Necessities (SPN) Approach; see @Wright2008IPSEProfile for the initial South African application. This work suggests 31 or 32 necessities -- 36 if there are children in the household -- that there is broad agreement across population groups, and that, as incomes increase, households lack fewer necessities. However, @Wright2008IPSEProfile do not attempt to place a monetary value on the SPNs. @Wright_Padley_Zembe-Mkabile_2020 provide a brief discussion of a follow-up pilot relating to the earlier work, but I am not aware of any further progress on that front.
 
-In this research, we estimate subjective poverty lines, based upon the minimum income question (MIQ), comparing their implied impact on poverty, relative to money-metric lines that are available. We do so across two surveys from South Africa that were undertaken approximately 10 years apart [@lcs2014; @ghs2023], to see whether there have been any changes in subjective views of poverty over that time period, how much the subjective measures differ from the objective measures, and what those differences imply for poverty rates for different types of households. Our subjective poverty lines are underpinned by ordinary linear and quantile regression analyses that indirectly determine the intersection between actual and required income. It is that intersection that determines the subjective poverty line; see @Goedhartetal1977 or @ravallion2014poor for details. 
+In order to develop monetary values, it is necessary to incorporate measures of income or expenditure, possibly based on a broader survey. @Noble2015DecentLivingLevel correlate the SPNs available in the 2008/09 South African Living Conditions Survey with income (monthly per capita and per employed adult). Unfortunately, most surveys do not contain all SPNs, as they have not been designed to do so. Their results offer a range of incomes, presented as either mean or median (the latter to avoid outliers) incomes for households that hold a particular number of SPNs. For example, for households with 21 SPNs, average equivalised earnings (average earnings, so does not include grant income, per adult in the household) is R2 750. The per capita median is approximately R1000 per month. However, the per capita measure ignores potential economies of scale, while the wide range of SPNs and incomes raise difficulties in deriving a monetary equivalent.
 
-**Hmmm, I need to do some more editing from here on down in the intro to tell the story more clearly.**
+@Frye2018DSLIndex extend the analysis to the 2014/15 LCS, adjusting for inflation. Their SPNs are underscored by the initial focus group research outlined in @Wright2008IPSEProfile and their subjective poverty lines continue to be SPN-dependent. For 21 SPNs, median per capita household income was approximately R7000 per month. Most recently, @Frye2023DecentStandard offers some comparison between the 2014/15 data and the 2022 Census, which does not capture income in as much detail. For the same 21 SPNs, they find an average of R4 500 per month per capita, a value that is lower than that estimated for 2015. Because of size of the estimated reduction, they also inflation-adjusted the 2015 values, which yielded an average of approximately R8 300 for 21 SPNs. Similar concerns related to per capita and the extent of potential poverty lines remain; thus, the need to further formalise a subjective poverty line remains.
 
-Despite the existing body of research on poverty in South Africa (Woolard & Leibbrant, 1999; Posel & Rogan, 2014), there are some gaps remaining regarding the role of household dynamics and regional disparities. There are also gaps in what these differences mean in determining a subjective poverty level. Thus, the purpose of this study is to better understand how subjective income levels vary across South African households, using MIQ to capture these differences. This research builds on earlier studies that use the MIQ to explore subjective poverty (Goedhart et al., 1977; Kapteyn et al., 1988). This study explores how a households’ perceived minimum income can vary due to differences in the household size, composition, geographic location and settlement type, amongst other factors. This research aims to provide new insights into the evolving socio-economic landscape of South Africa by using the 2014/2015 living Conditions survey. This work follows a similar method to Wang et al., (2020), in which an OLS regression is computed, and the coefficients are then utilized to estimate subjective poverty lines.
+In a related literature, @posel2014 considers individual subjective well-being, while @poselrogan2016 focus on the household. Each of these analyses are founded on ladder-type questions (where respondents rank their living conditions as being representative of very poor to wealthy or they rate their satisfaction with life from very dissatisfied to very satisfied). @Frye2014DecentLiving and @poselrogan2019, as far as we know, are the only ones to use MIQ in their analysis. @poselrogan2019 focus on income aspirations, i.e., the level of income households aspired to reach. They further examine how reported minimum income correlates with a range of household characteristics, including objective/subjective measures of economic standing and their district's local economic conditions. @Frye2014DecentLiving considers a few subjective measures from the 2008/09 South African Living Conditions Survey, including one based on MIQ; however, she does not outline how those monetary values are derived. 
 
-The findings reveal that household composition plays a critical role in shaping income needs, where households with one of more adults have higher subjective poverty levels, and households with three or more adults have lower levels. The results vary with the effect of children within a household, thus further research would be needed to see the effect of children at different ages. The results further highlight significant disparities in subjective poverty thresholds, with households in urban formal areas requiring higher minimum incomes compared to rural and traditional areas.
+Although it may not be obvious how one would extract one poverty line from the wide range of SPNs, the literature is quite clear on how to extract such lines from MIQ questions. In this research, we estimate subjective poverty lines, based upon MIQ, comparing their implied impact on poverty, relative to money-metric lines that are available. We do so across two surveys from South Africa undertaken approximately 10 years apart [@lcs2014; @ghs2023], to see whether there have been any changes in subjective views of poverty over that time period, how much the subjective measures differ from the objective measures, and what those differences imply for poverty rates for different types of households. Our subjective poverty lines are estimated by ordinary linear and quantile regressions that indirectly determine the intersection between actual and required income. That intersection underscores the subjective poverty line; see @Goedhartetal1977 or @ravallion2014poor for details.  We also explore potential endogeneities following standard IV methods as well as heteroskedastic IV methods [@Lewbel2012], due to the fact that instrument options are limited, at best.
 
-Anyway, I find three main results and a few smaller points. The first main result is that there is a fairly high minimum income at about R2200-2500, depending on the analysis. This is a one person household value. The second main result is that this value rises slowly, somewhere between R75-125 per additional adult/child in the household. In other words, it does not really depend on household structure. The third main result is that the minimum values have fallen since 2014-15, although not by much. The smaller points -- which may be bigger than I understand at this point -- are at least three-fold. One is that paying out benefits in this way may not make all that much sense, as it might encourage 'overinvestment' in households, possibly via fraudulently reported living arrangements or too many different households. Another is that I may, instead, be picking up a household formation process around some minimum of fixed value; however, the old-age pension is not as large as the baseline value I am finding here. Thus, there is something else? I did a quick NP picture that suggests squaring age is not quite correct, so maybe use age as a 'factor'; however, doing so is not likely to matter enough. A third is that this suggests that a BIG is not a good idea, either, although this point is not so different from the first one. 
-
+Despite the extensive body of South African poverty research in South Africa, we are not aware of any estimates of subjective poverty lines based on the MIQ or some other subjective measure of well-being. We further examine how it has changed over time. Given that we are able to control for extensive household heterogeneity, we estimate the cost of an additional child and the cost of an additional adult, which we find is not the same. Neither are those estimates similar to the per capita values outlined by Statistics South Africa. Thus, poverty rates by household type differ substantially (in-sample) when comparing money-metric and subjective poverty lines. We also find large increases in the additional cost per child and adult in the 2023 survey compared to the 2014/15 survey, which implies that subjective poverty rates in 2023 are relatively higher than those in 2014/15, when compared to the upper bound poverty lines.
 
 # Literature
 
-The minimum income question has a long history and association with poverty, dating back at least to @VANPRAAG1971, although the question has changed slightly since then. @Goedhartetal1977, however, argue that responses to MIQ are positively correlated with own income and family size; therefore, poverty lines should be appropriately adjusted.  @LanjouwRavallion1995 and @v02 uncover similar correlations between MIQ responses, income and household size.  
+The minimum income question has a long history and association with poverty, dating back at least to @VANPRAAG1971, although the question has changed since then. @Goedhartetal1977 argue that responses to MIQ are positively correlated with own income and family size; therefore, poverty lines should be appropriately adjusted.  @LanjouwRavallion1995 and @v02, amongst others, uncover similar correlations between MIQ responses, income and household size.  
 
 @kkw88 demonstrate that MIQ can be utilized to evaluate subjective poverty, stressing its ability to capture perceived income adequacy. Similarly, @fv91 argue that subjective data can help understand poverty dynamics across heterogeneous populations, while @rojas2007 finds some non-poor money-metric households to be subjectively impoverished, partly due to differences in household composition and regional cost variations. Thus, it is likely to capture different features of poverty than those that arise from money-metric measures. MIQ may reflect aspirations, rather than needs [@kv78; @RavallionLokshin01, @s83]. Thus, combining subjective poverty with money-metric data may provide a better composite measure of poverty than subjective measures alone [@poselrogan2016].
 
-We are not aware of any research on subjective poverty in South Africa underscored by MIQ. @roberts2025wp uses MIQ to assess the cost of an additional household member, while @poselrogan2019 use MIQ to examine income aspirations. Thus, we offer one of the first analyses of subjective poverty, based on the MIQ in South Africa. However, other subjective measures of economic status do feature. @MollerSaris2001 focus on life satisfaction. On the other hand, @bd04, @poselrogan2016, as well as @repecbila, use subjective poverty -- respondents label themselves as poor, just getting by, or rich, depending on the exact phrasing of the question -- which is categorical. Other categorical measures include multi-step ladders, upon which households place themselves -- on the bottom, top rung, or somewhere in between -- relative to others; @BlaauwPretorius2013, @repecbila and @Kirsten2023 make use of these. For the most part, these analyses examine the determinants of subjective poverty, often comparing substrata of the population to each other finding, amongst others, that black South Africans are subjectively poorer than other population groups. 
+We are not aware of any research on subjective poverty in South Africa underscored by MIQ. @roberts2025wp uses MIQ to assess the cost of an additional household member, while @poselrogan2019 use MIQ to examine income aspirations. Thus, we offer one of the first analyses of subjective poverty, based on the MIQ in South Africa. However, other subjective measures of economic status do feature. @MollerSaris2001 and @Neff2007SWB focus on life satisfaction. On the other hand, @bd04, @poselrogan2016, as well as @repecbila, use subjective poverty -- respondents label themselves as poor, just getting by, or rich, depending on the exact phrasing of the question -- which is categorical. Other categorical measures include multi-step ladders, upon which households place themselves -- on the bottom, top rung, or somewhere in between -- relative to others; @BlaauwPretorius2013, @repecbila and @Kirsten2023 make use of these. For the most part, these analyses examine the determinants of subjective poverty, often comparing substrata of the population to each other finding, amongst others, that black South Africans are subjectively poorer than other population groups. 
 
-<!-- Moller and Saris (2001) used the 1995 Quality of Life Trends study to assess subjective poverty with the aim of examining subjective well-being across racial groups. Their study found that there were significant racial inequalities within the country, with Black South Africans reporting higher levels of subjective poverty compared to other racial groups. Bookwalter and Dalenburg (2004) used the 1994 South African Labour and Development Research Unit (SALDRU) data in their analysis of subjective poverty where they found that transportation and housing significantly influence subjective well-being, especially for rural households Posel & Rogan (2014) used the 2008-2009 LCS where respondents were asked to rate themselves from very poor to wealthy to estimate subjective poverty lines in South Africa. Their findings reveal that a household’s self-assessed level of poverty increases as the size of the household increases. Additionally, they found that larger families benefit from economies of scale and resource sharing and that there can be differences in the cost of living due to some wealthier provinces having higher costs of living. Bila & Biyase (2022) looked at the determinants of subjective poverty using the 2014-2015 LCS, with the aim of  examining the impact of gender, education, marital  status and locality on subjective poverty. They found that factors such as landownership and access to services have an effect on rural households’ subjective poverty. Whereas urban households are more likely to be affected by unemployment and health conditions. In general, they discovered that in South  Africa, variables like income, employment, household size and geographic location play a role in how  poverty is defined. 
+In related literature, the MIQ underscores equivalence scales [@bishopetal2014; @mysikova2022], which enable comparisons across different types of households [@deaton1997book; @f04; @dudel2021assessing; @koch2022; @koch2023]. Allowing for subjectivity recognizes that poverty lines may relate to individual or household perceptions of an acceptable standard of living in any given society [@r92]. Comparability requires assumptions related to utility, such as base independence [@lewbel1989] or equivalence scale exactness [@blackorbydonaldson1993], which are rarely supported empirically [@pendakur1999]. Given these limitations, @blundelllewbel1991 and @blackorbydonaldson1993 suggest focusing attention on minimum utility, where individuals make ends meet. Duality, with respect to utility, implies a minimum level of income corresponding to the minimum level of utility, which underscores 'local comparability' [@grodneretal2022]. 
 
-Despite these contributions, South African research does not have a focused examination of subjective poverty lines using the MINQ. Most studies rely on alternative subjective measures, leaving gaps in our understanding of how minimum income perceptions vary across household consumptions and regions. This study aims to fill this gap by using the using the 2014-2015 LCS to estimate subjective poverty lines for households based on the MINQ. 
--->
+Local comparability represents a formalization of the intersection approach [@Goedhartetal1977]; the intersection occurs where individuals’ perceptions of their minimum income needs aligns with their actual income. In several studies, the MIQ is used to estimate the income needed for a household of a specific composition to reach what they consider an acceptable quality of living [@bishopetal2014; @mysikova2022]. Although both @bishopetal2014 and @mysikova2022 examine MIQ, they focus on equivalence scales, rather than subjective poverty lines. Equivalence scales are determined by the ratio of one household's expenditure relative to a reference expenditure; intuitively, poverty lines could be inferred from their research. In both cases [@bishopetal2014; @mysikova2022], equivalence scales exhibit greater economies of scale than objective scales; thus, the underlying (subjective) poverty lines would have a rather small household size gradient. 
 
-In related literature, @bishopetal2014 and @mysikova2022, amongst others, the MIQ underscores equivalence scales, which enable comparisons across different types of households [@deaton1997book; @f04; @dudel2021assessing; @koch2022]. Allowing for subjectivity recognizes that poverty lines may relate to individual or household perceptions of an acceptable standard of living in any given society [@r92]. Comparability requires assumptions related to utility, such as base independence [@lewbel1989] or equivalence scale exactness [@blackorbydonaldson1993], which are rarely supported empirically [@pendakur1999]. Given these limitations, @blundelllewbel1991 and @blackorbydonaldson1993 suggest focusing attention on minimum utility, where individuals make ends meet. Duality, with respect to utility, implies a minimum level of income corresponding to the minimum level of utility, which underscores 'local comparability' [@grodneretal2022]. 
-
-Local comparability represents a formalization of the intersection approach [@Goedhartetal1977]; the intersection occurs where individuals’ perceptions of their minimum income needs aligns with their actual income. In several studies, the MIQ is used to estimate the income needed for a household of a specific composition to reach what they consider an acceptable quality of living [@bishopetal2014; @mysikova2022]. Although both @bishopetal2014 and @mysikova2022 examine MIQ, they focus on equivalence scales, rather than subjective poverty lines. In practice, equivalence scales are determined, in part, from such lines; thus, implications about poverty lines can be inferred from their research. In both cases, equivalence scales exhibit greater economies of scale than objective scales; thus, the underlying (subjective) poverty lines would have a rather small household sizse gradient. 
-
-In South Africa, the equivalence scale literature is fairly recent [@yatchewsunderi2003; @poseletal2016; @poseletal2020; @koch2022]. Although @poseletal2016 consider hypothetical scales, the rest of this research estimate (semi-)parametric models of food shares (and other consumption good shares), which, via the Engel method can converted into equivalence scales [@deaton1997book].  @koch2023, on the other hand, estimates subjective scales, underpinned by consumption adequacy [@pradhanravallion2000]. As with the subjective literature elsewhere, Koch's subjective scales exhibit extensive economies of scale, suggesting that subjective poverty lines are relatively non-responsive to household size. Below, we examine that gradient in greater detail, using South African survey data from 2014/15 and 2023. 
+In South Africa, the equivalence scale literature is fairly recent [@yatchewsunderi2003; @poseletal2016; @poseletal2020; @koch2022]. Although @poseletal2016 consider hypothetical scales, the others estimate (semi-)parametric models of food shares (and other consumption good shares), which, via the Engel method can be converted into equivalence scales [@deaton1997book]. @koch2023 estimates subjective equivalence scales, underpinned by consumption adequacy [@pradhanravallion2000]. As with the subjective literature elsewhere, Koch's subjective scales exhibit extensive economies of scale, suggesting that subjective poverty lines are relatively inelastic with respect to household size. Below, we examine that gradient in greater detail, using South African survey data from 2014/15 and 2023. 
 
 
 # Data
 
-We make use of data from two sources. The first is the 2014-2015 Living Conditions Survey (LCS), which was collected by Statistics South Africa [@lcs2014]. The second is the 2023 General Household Survey (GHS), collected by the same [@ghs2023]. The 2014/15 survey offers a baseline; it was used in previous research into both objective and subjective equivalence scales [@koch2022; @koch2023]. The 2023 GHS results are presented partly for comparison and partly for purposes of an update; more recent data might yield different results and conclusions.
+We make use of data from two sources.^[All data and code to recreate all results, included in the text or not, as well as all figures and tables is available from the author, upon request.] The first is the 2014-2015 Living Conditions Survey (LCS), which was collected by Statistics South Africa [@lcs2014]. The second is the 2023 General Household Survey (GHS), collected by the same [@ghs2023]. The 2014/15 survey offers a baseline; it was used in previous research into both objective and subjective equivalence scales [@koch2022; @koch2023]. The 2023 GHS results are presented partly for comparison and partly for purposes of an update. More recent data might yield different results and conclusions.
 
-Each survey contains data regarding households and the individuals contained therein, although not necessarily in the exact same format. Importantly, each contains the MIQ, as well as information on household structure (number of household members and their ages - we focus our attention on those in the household at least four nights per week), household income, location, the marital status, sex, population group and education level of the household head, and survey participation timing. In particular, we separate the number of children from the number of adults using 18 years of age as the threshold. As previously noted, our variable of interest is the response to MIQ; it is the minimum amount of net income (per month) required for the household to get by. For the analysis, we used its log value. Similarly, we used log monthly income, along with the previously listed variables.
+Each survey contains data regarding households and the individuals contained therein, although not necessarily in the exact same format. Importantly, each contains the MIQ, as well as information on household structure (number of household members and their ages - we focus our attention on those in the household at least four nights per week), household income per month, location, the marital status, sex, population group and education level of the household head, and survey participation timing. In particular, we separate the number of children from the number of adults using 18 years of age as the threshold. As previously noted, our variable of interest is the response to MIQ; it is the minimum amount of net income (per month) required for the household to get by. To remove outliers in the analysis, we trim the top and bottom 5% of MIQ. We discuss reasons for that decision in the results section.
 
-The data files were combined for each survey to compile the preceding information. For both data sets, individuals/households with missing information for the relevant data were removed. The LCS initially contained 23 380 households, while the analysis sub-sample is based on 20 777.^[We removed households with more than 4 children and more than 6 adults. We also removed households that did not offer answers to MIQ or answered 0, and other subjective welfare questions. Furthermore, for some of the household heads, education and marital status were not available.] The GHS initially included 20 927 households, while our analysis sample was reduced to 18 816 after removing missing information.^[As with the LCS, we removed missing information on MIQ, as well as reported 0 values, education and marital status. We also removed households that did not provide information on either income or expenditure.]
+The data files were combined for each survey to compile the preceding information.^[Data wrangling was undertaken in `R` [@rcore], making use primarily of the `tidyverse` [@tidyverse] package and `haven` [@haven].] For both data sets, individuals/households with missing information for the relevant data were removed. The LCS initially contained 23 380 households, while the analysis sub-sample is based on 18 699.^[We removed households with more than 4 children and more than 6 adults. We also removed households that did not offer answers to MIQ or answered 0, and other subjective welfare questions. Furthermore, for some of the household heads, education and marital status were not available. We also removed the top and bottom 5% of observations.] The GHS initially included 20 927 households, while our analysis sample was reduced to 16 975 after removing missing information and trimming.^[As with the LCS, we removed missing information on MIQ (as well as reported 0 values) education and marital status. We also removed households that did not provide information on either income or minimum income required, as well as the top and bottom 5% of observations.]
 
 
 # Methods
 
+We apply standard linear and quantile regression analysis. We also apply instrumental variable methods to address some endogeneity concerns.
+
 ## Regression
 
-We apply standard methods, assuming a parametric relationship \eqref{eq:nprelation} between reported minimum income $(\underline{Y})$, actual income $(Y)$, household demographic characteristics $(D)$ and other characteristics related to household decisions, such as location, household head marital status and other controls $(Z)$, and unobserved components $u$. We assume log-linearity of incomeand treat the number of adults $(A)$ and children $(K)$ as continuous variables, which yields expression \eqref{eq:continuous}.
+Standard methods assume a parametric relationship between reported minimum income $(\underline{Y})$, actual income $(Y)$, household demographic characteristics $(D)$ and other characteristics related to household decisions, such as location, household head marital status and other controls $(Z)$, and unobserved components $u$. We assume linearity in income and treat the number of adults $(A)$ and children $(K)$ as continuous, which yields expression \eqref{eq:continuous}.
 \begin{equation}
 \label{eq:continuous}
-\ln \underline{Y} = \alpha + \beta \ln Y + \phi A_i + \theta K_i + \sum_j \zeta_j Z_j 
+ \underline{Y} = \alpha + \beta Y + \phi A + \theta K + \sum_j \zeta_j Z_j + u
 \end{equation} 
+We focus our attention on this model because (i) it yields per adult and per child estimates, and (ii) the outcome is measured in rands, such that the underlying estimates are in rand per child or adult. The estimates, once adjusted for the intersection method, are then easy to compare to the upper and lower bound money-metric poverty lines. We also note that we do not inflation-adjust the data, before undertaking regression, since each regression is performed for each year, and much of the analysis is per year. When comparing estimated poverty lines, however, we will adjust as necessary.
 
-For sensitivity, we consider a exensions to this relationship. For example, we consider a quadratic income relationship, as in \eqref{eq:quad}. 
+We also consider extensions to this relationship. For example, we consider a quadratic income relationship, as in \eqref{eq:quad}. 
 \begin{equation}
 \label{eq:quad}
-\ln \underline{Y} = \alpha + \beta \ln Y + \gamma \left( \ln Y \right)^2 + \phi A_i + \theta K_i + \sum_j \zeta_j Z_j 
+ \underline{Y} = \alpha + \beta  Y + \gamma  Y^2 + \phi A + \theta K + \sum_j \zeta_j Z_j + u
 \end{equation}
-Furthermore, since the preceding expressions assume that each additional adult and/or child increases the minimum income at the same rate, we follow @koch2022 and @koch2023. Specifically, we create a dummy variable representation of household structure, as in \eqref{eq:linindex}. Specifically, we define $a_{ia} = \mathbf{1}(A_i=a)$, with the kids $(\kappa)$ dummy variables similarly defined. An extension with a quadratic relationship in actual income is also estimated.
+Furthermore, since the preceding expressions assume that each additional adult and/or child increases the minimum income at the same rate, we extend the analysis as suggested by @koch2022 and @koch2023. Specifically, we create a dummy variable representation of household structure, as in \eqref{eq:linindex}. Specifically, we define $a_{a} = \mathbf{1}(A=a)$, with the kids $(\kappa)$ dummy variables similarly defined. An extension with a quadratic relationship in actual income is also estimated.
 \begin{equation}
 \label{eq:linindex}
-\ln \underline{Y} = \alpha + \beta \ln Y + \sum_a \delta_a a_{ia} + \sum_k \psi_k \kappa_{ik} + \sum_j \zeta_j Z_j 
+\underline{Y} = \alpha + \beta Y + \sum_a \delta_a a_{a} + \sum_k \psi_k \kappa_{k} + \sum_j \zeta_j Z_j + u 
 \end{equation}
 Finally, we estimate a quantile regression, based on \eqref{eq:continuous}. 
 
-The subjective poverty lines arising from this analysis are determined by the model parameters, the implication of which is exogeneity. In other words, household structure and income are not correlated with unobserved information, conditional on the controls included in the model - a strong assumption. Amongst other issues, previous literature has suggested that: household size depends on the gender of the household head [@poseletal2016]; household arrangements depend on migration [@wittenberg2017decomposing] and access to income, and by implication, the source of that income [@hamoudithomas2014]; that income could also be measured with error [@burgerersawp]. Furthermore, the economics/demography literature is replete with models suggesting that fertility is endogenous, and, therefore, so is the number of (biological) children in the household [@tshiswaka2017contraceptive]. 
+The subjective poverty lines arising from this analysis are determined by the regression estimates, identification of which is founded on exogeneity. In other words, household structure and income are not correlated with unobserved information, conditional on the controls included in the model - a strong assumption. Amongst other issues, previous literature has suggested that: household size depends on the gender of the household head [@poseletal2016]; household arrangements depend on migration [@wittenberg2017decomposing] and access to income, and by implication, the source of that income [@hamoudithomas2014]; that income could also be measured with error [@burgerersawp]. Furthermore, the economics/demography literature is replete with models suggesting that fertility is endogenous, and, therefore, so is the number of (biological) children in the household [@tshiswaka2017contraceptive]. 
 
-Addressing these potential threats to identification is problematic. Identification would be assured, if appropriate confounders can be included in the analysis or, if such confounders are not observable, instruments are available. Our analysis includes income, as well as a numerical count of grant recipients in the household to capture income and variation in income source, the latter of which is likely strongly correlated with household structure. To deal with measurement error in income, one could follow control function or heteroskedasticity instrumentation [@Lewbel2012] methods. The method outlined by @dong2010 and applied by koch2022, requires a continuous variable with a greater range than the endogenous regressor. For the LCS data, expenditure could be used; however, for the GHS data, expenditure is only available across 12 categories -- it is not continuous and certainly does not cover a wider range than reported income. Thus, we instrument, but do not report estimates, via heteroskedasticity to address endogeneity concerns.^[Full results are available upon request. The effect of the endogeneity control is discussed in the manuscript.] 
+Addressing these potential threats to identification is problematic. Identification would be assured, if appropriate confounders can be included in the analysis or, if such confounders are not observable, instruments are available. Our analysis includes income, as well as a numerical count of grant recipients in the household to capture income and variation in income source. The latter is likely strongly correlated with household structure, as well as minimum income required (thus, it should not be used as an instrument). To deal with measurement error in income, one could follow control function or heteroskedasticity instrumentation methods [@Lewbel2012]. The method outlined by @dong2010 and applied by koch2022, requires a continuous variable with a greater range than the endogenous regressor. For the LCS data, expenditure meets this expectation; however, for the GHS data, expenditure is only available across 12 categories -- it is not continuous and certainly does not cover a wider range than reported income. Thus, we instrument via heteroskedasticity, but do not report the full set of estimates, to address endogeneity concerns; we also use expenditure as an instrument for income in some specifications.^[Full results are available upon request. The effect of the endogeneity control is discussed in the manuscript.] 
 
 ## Subjective poverty lines
 
-Subjective poverty lines are described as fixed points [@Goedhartetal1977], where $\ln \underline{Y} = f(\ln \underline{Y}, D, Z)$. Under linearity, that fixed point occurs at the intercept, adjusted for the regression slope; it also differs depending on whether we assume constant marginal required income "costs" for children and adults or if we allow for a quadratic income relationship.^[With a quadratic term in the regression, the fixed point is determined by the solution to the quadratic formula -- we did not uncover any complex roots in our analysis.] Treating adults and kids as continuous variables, as in \eqref{eq:continuous}, the (log) subjective poverty line is defined by \eqref{eq:linear-spl}. 
+Subjective poverty lines are defined by fixed points [@Goedhartetal1977], where $\underline{Y} = f(\underline{Y}, D, Z)$. Under linearity, that fixed point occurs at the intercept, adjusted for the regression slope; it also differs depending on whether we assume constant requirements for children and adults, or if we allow for a quadratic income relationship.^[With a quadratic term in the regression, the fixed point is determined by the solution to the quadratic formula -- we did not uncover any complex roots in our analysis.] Treating adults and kids as continuous variables, as in \eqref{eq:continuous}, the subjective poverty line is defined by \eqref{eq:linear-spl}, where the derivatives with respect to adults, children and any other control are fixed by the model parameters. 
 \begin{equation}
 \label{eq:linear-spl}
-\ln \underline{Y}_i =  \frac{\alpha + \phi A_i + \theta K_i + \sum_j \zeta_j Z_j }{1-\beta}
+\underline{Y} =  \frac{\alpha + \phi A + \theta K + \sum_j \zeta_j Z_j }{1-\beta}
 \end{equation}
 
-In other words, estimates yield constant percentage changes; the percentage change in required income for an additional adult is $\phi/(1-\beta)$, while the percentage change per child is $\theta/(1-\beta)$.^[The partial derivative of $\ln \underline{Y}_i$ with respect to $A_i$ in \eqref{eq:linear-spl} is constant $(\phi)$. In models where squared income is included, the underlying calculations are more complicated because the quadratic formula is used to determine the poverty line. In other words, $\ln \underline{Y} = (2a)^{-1}\times (-b \pm \sqrt{b^2 - 4ac})$, where $a=\gamma$, $b=1-\beta$ and $c= \alpha + \phi A + \theta K$. There are two roots; one yields required income levels approximate five times its mean value in the two surveys, while the other yields levels relatively close to the mean values in the surveys; we choose the smaller of these, because it is more representative of the data.] As reported below, we find support for this modelling assumption, and, therefore, we do not derive poverty lines underpinned by non-constant percentage changes per child that would be implied by estimates from \eqref{eq:linindex} or \eqref{eq:quad}. For the quantile models, equation \eqref{eq:linear-spl} remains relevant; however, because estimates are quantile-dependent, so are the resulting poverty lines.
+In other words, estimates yield a constant adjustment factor; the change in required income for an additional adult is $\phi/(1-\beta)$, while the change per child is $\theta/(1-\beta)$.^[The partial derivative of $\underline{Y}$ with respect to $A$ in \eqref{eq:linear-spl} is constant $(\phi)$. In models where squared income is included, the underlying calculations are more complicated because the quadratic formula is used to determine the poverty line. In other words, $\underline{Y} = (2a)^{-1}\times (-b \pm \sqrt{b^2 - 4ac})$, where $a=\gamma$, $b=1-\beta$ and $c= \alpha + \phi A + \theta K$, ignoring any additional $Z_j$. There are two roots; one yields required income levels approximately five times its mean value in the two surveys, while the other yields levels relatively close to the mean values in the surveys; we choose the smaller of these, because it is more representative of the data.] As reported below, we find support for this modelling assumption, and, therefore, we do not derive poverty lines underpinned by non-constant changes per child that would be implied by estimates from \eqref{eq:linindex} or \eqref{eq:quad}. For the quantile models, equation \eqref{eq:linear-spl} remains relevant; however, because estimates are quantile-dependent, so are the resulting poverty lines.
 
-<!--On the other hand, if indicator functions are used for each child and each adult, the subjective poverty line is determined by \eqref{eq:linear-spl-dummy}.
-\begin{equation}
-\label{eq:linear-spl-dummy}
-\underline{Y} =  \exp \left( \frac{\alpha + + \sum_a \delta_a a_{ia} + \sum_k \psi_k \kappa_{ik} + \sum_j \zeta_j Z_j }{1-\beta} \right)
-\end{equation}
-For reporting, we net out all of the $Z$ factors; they are included in the regression, but are not included in the calculation of subjective poverty. However, it is possible to calculate different subjective poverty lines for different regions of the country, or other subgroups by altering the calculation structure.
-
-For the general equation, we will apply simulation methods, searching for the value of $\ln \underline{Y} = f(\ln \underline Y, D, Z)$, conditional on $D$ and $Z$. 
-
-Rearranging to find the intersection - goedhart - yields the subjective poverty line, as a function of the demographic and other characteristics \eqref{eq:spl}.
-
-\begin{equation}
-\label{eq:spl}
-\underline{Y} =  \exp \left( \frac{\alpha + \sum_j \delta_j D_j + \sum_j \zeta_j Z_j }{1-\beta} \right)
-\end{equation}
+Two important constraints are implied by equation \eqref{eq:linear-spl}. The first is that income proportionality cannot be or exceed one, as that would lead to either undefined or negative poverty lines. The second is similar, in that the intercept plus the child and adult components cannot be negative, as that would imply a negative, and, therefore, unrealistic, poverty line. Below, we find that for the GHS data, negative poverty lines could arise, if the data was not trimmed, due to negative intercepts. Thus, the majority of this research is underpinned by trimmed (top and bottom 5%) data.
 
 
-From these subjective poverty lines, marginal child and adult costs can be derived for each additional household member $(h \in \{a,k\})$, where $a$ and $k$ refer to adult and child, respectively, while $\underline{Y}^*$ is the reference household, which we will define as having one adult and zero children. **Is this independent of the number of adults and children already in the house? As before, we can turn off the "other" variables?** 
+# Initial results
 
-\begin{equation}
-\label{eq:margcost}
-M(h) = \frac{\underline{Y}(h) - \underline{Y}(h-1) }{\underline{Y}^*}
-\end{equation}
-
-
-The linear model specified yields marginal costs that are partially independent of the underlying size of the household, and, therefore, may not be appropriate. *Are they partially independent? Not really, because of the exponential functions... The SPLs are partially independent, though.* Specifically, it is possible the that the marginal cost of a first child is larger/smaller in a household with two adults than in a household with one adult. Therefore, we also estimate the nonparametric model in \eqref{eq:nprelation}. To capture the intersection, we apply numeric methods, because the inverse of an unspecified function cannot be determined. 
-
-*Option 1:* First, we fix $D$ and $Z$ to create a data subsample. We use the fixed values of $D$ and $Z$, as well as the observed $\ln Y$ values to predict $\hat{f}$ for all households in the subset. We then choose the $\ln Y$ that is closest to the fitted value, as the subjective poverty line for that household type. *Worry:* this value may not be all that "close". 
-
-*Option 2:* First, we fix $D$ and $Z$. Second, we simulate $\ln Y$ across a wide range. We use the simulated data to predict $\hat{f}$ for all households in the subset. We then choose the simulated $\ln Y$ that is closest to the fitted value, as the subjective poverty line for that household type. *Worry:* this value may not match what households say they spend?
-
-\begin{equation}
-\label{eq:nprelation2}
-\ln \underline{Y} = \hat{f}(\ln Y,\tilde{D},\tilde{Z})
-\end{equation}
-
--->
-
-
-# Results
-
+We begin by describing the data and providing estimates based on the linear and quadratic regressions outlined in the methods section.
 
 ## Descriptive statistics
 
-Descriptive statistics are available in the appendix; see Tables \@ref(tab:dstat) and \@ref(tab:dstat-ghs). The data is available for all households, and is further separated by an indicator of whether the household's minimum required income is larger than its actual income, i.e., they have enough (or too little). The data suggests a slight increase (over time) in the proportion of households with too little, an increase in the level of education of the household head, as well as increases in both income and reported minimum required income (in logs). However, those increases are not large. According to the data (not weighted to the population), minimum required income increased by 0.28 log points, while actual income increased by 0.24. In other words, average minimum required income increased by 0.28%, which is a bit more than average income, which increased by 0.24% over the 9 years between surveys.
+Descriptive statistics are available in the appendix; see Tables \@ref(tab:dstat) and \@ref(tab:dstat-ghs). The data is presented for the entirety of the estimation sample of households, and is further separated by an indicator of whether the household's minimum required income is larger than its actual income, i.e., they have enough (or too little). The data suggests a slight increase (over time) in the proportion of households with too little, an increase in the level of education of the household head, as well as increases in both income and reported minimum required income. According to the data, minimum required income increased by approximately R3 000, from R7 200 to R 10 500 (45.8%), while actual income increased by about R1 000 (14.1%). During that same time period, recorded inflation was between 3.3% and 6.9%. Over 9 years, and compounding, average prices increased 54% during the time period.^[The inflation calculation covers the beginning of 2015 to the end of 2023, which slightly over-represents by a few months, the full time frame between surveys.] In other words, the data suggests that households were finding it harder to "get by" in 2023, than in 2014/15. We formalise this further, below.
 
 ## Regression results
 
-**I dropped these figures - Might want to bring the Loess back?**
-We begin by illustrating the nonparametric relationship between income and minimum required (using logs) in Figures \@ref(fig:lcs-loess-plot) and \@ref(fig:ghs-loess-plot). Each figure contains two curves: one underpinned by a Loess regression plot, which does not account for additional controls, while the other is derived from a fully nonparametric estimate of the relationship that includes the same controls as in equation \eqref{eq:continuous}. 
+The main regression results are also presented in the appendix. See Tables \@ref(tab:smooth-table) and \@ref(tab:dummies-table) for the OLS results.^[Full quantile and IV estimates are available from the authors upon request. We illustrate the main quantile estimates, below, and we offer a brief discussion of the main IV results, as well. As might be expected, the quantile results suggest higher minimum incomes are required from those in better economic circumstances. The endogeneity corrections, on the other hand, yield more nuanced results.] The regression results offer numerous insights. We find that required minimum income is increasing in actual income, which is often observed in the literature, starting with @Goedhartetal1977; we refer to this estimate as income proportionality, because it represents the conditional requirement "pass-through" from actual income to required minimum income. We also find that required minimum incomes are increasing in both the number of adults and children. Relatively speaking, the adult estimate is 50% (or more) larger than the child estimate in 2014, but is fairly similar in 2023. Thus, compared to adults, children are associated with a relatively larger increase in the required minimum in 2023. Although not directly comparable, child costs inferred from subjective measures of adequacy are also rather large in the local equivalence scale literature [@koch2023]. We also find large differences across population groups, in line with  post-apartheid expectations [@poselrogan2019]. 
 
-
-In these figures, we see some evidence that the additional controls affect the relationship, although the slopes of both curves are fairly similar in each figure. Both figures also include the 45$^\circ$ line. Comparing across the two figures, the intersection of the curves with that 45$^\circ$ line - which underpins the estimation of poverty lines - occurs at lower values in 2014-15 relative to 2023. Below, we see whether that change in intersection affects the subjective poverty lines.
+We find a negative relationship, of similar magnitude across years, of the number of grants in the households: the reduction is approximately R750 to R1 000 per grant. To put this into perspective, the old-age pension was R1 860 -- R1 880 in 2015 and R2 090 -- R2 110 in 2023, depending on the age of the recipient. Other grants were smaller, such as the child support grant (R330 in 2015 to R500 in 2022) and the social relief of distress grant (non-existent in 2015 to R350 in 2023). Although out of the scope of this research, and worth further investigation, the grant pass-through to minimum income requirements appears to be less than the average value of the grants, implying significant economies of scale with respect to grant-income pooling, and, by implication, household structure. 
 
 ```{r model-formulas}
 
@@ -680,7 +641,6 @@ qdummy <- formula(minq ~ y.month + y2.month + k1 + k2 + k3 + k4 +
 
 ```
 
-
 ```{r linear-models, dependson="lcs; model-formulas"}
 
 ## dummy rows for squared term..
@@ -688,42 +648,44 @@ ddr1 <- tibble(n="lny.sq",results = NA)
 ddr2 <- tibble(n="lny.sq",results = NA)
 ddr <- rbind(ddr1, ddr2)
 
-base.data <- lcs2014 
+base.data <- lcs2014 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
 lineary_smooth <- lm(ysmooth,
                      data=base.data)
 lineary_smooth_tab <- ctab(lineary_smooth, 
-                           cluster = lcs2014$psu)[1:8,c(1,3)]
+                           cluster = base.data$psu)[1:8,c(1,3)]
 lysmooth_tab <- rbind(lineary_smooth_tab[1:4,],
                       ddr,
                       lineary_smooth_tab[5:8,])
 
 lcs_ly_smooth_tab <- ctab(lineary_smooth, 
-                           cluster = lcs2014$psu)
+                           cluster = base.data$psu)
 
 lineary_dummies <- lm(sdummy,
                      data=base.data)
 lineary_dummies_tab <- ctab(lineary_dummies, 
-                           cluster = lcs2014$psu)[1:22,3]
+                           cluster = base.data$psu)[1:22,3]
 lydum_tab <- rbind(lineary_dummies_tab[1:4,],
                      ddr[,2],
                      lineary_dummies_tab[5:22,])
 lcs_ly_dummies_tab <- ctab(lineary_dummies, 
-                           cluster = lcs2014$psu)
+                           cluster = base.data$psu)
 
 quadraticy_smooth <- lm(quad,
                        data=base.data)
 quadraticy_smooth_tab <- ctab(quadraticy_smooth, 
-                           cluster = lcs2014$psu)[1:10,3] 
+                           cluster = base.data$psu)[1:10,3] 
 lcs_qy_smooth_tab <- ctab(quadraticy_smooth, 
-                           cluster = lcs2014$psu)
+                           cluster = base.data$psu)
 
 quadraticy_dummies <- lm(qdummy,
                          data=base.data)
 quadraticy_dummies_tab <- ctab(quadraticy_dummies, 
-                           cluster = lcs2014$psu)[1:24,3]
+                           cluster = base.data$psu)[1:24,3]
 lcs_qy_dummies_tab <- ctab(quadraticy_dummies, 
-                           cluster = lcs2014$psu)
+                           cluster = base.data$psu)
 
 # hypothesis tests...
 vcov_cluster_ldum <- vcovCL(lineary_dummies, cluster = ~ psu)
@@ -791,41 +753,43 @@ ddr1 <- tibble(n="y2.month",results = NA)
 ddr2 <- tibble(n="y2.month",results = NA)
 ddr <- rbind(ddr1, ddr2)
 
-base.data <- ghs2023 
+base.data <- ghs2023 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
 lineary_smooth <- lm(ysmooth,
                      data=base.data)
 lineary_smooth_ghs <- ctab(lineary_smooth, 
-                           cluster = ghs2023$psu)[1:8,c(1,3)]
+                           cluster = base.data$psu)[1:8,c(1,3)]
 lysmooth_ghs <- rbind(lineary_smooth_ghs[1:4,],
                       ddr,
                       lineary_smooth_ghs[5:8,])
 ghs_ly_smooth_tab <- ctab(lineary_smooth, 
-                           cluster = ghs2023$psu)
+                           cluster = base.data$psu)
 
 lineary_dummies <- lm(sdummy,
                       data=base.data)
 lineary_dummies_ghs <- ctab(lineary_dummies, 
-                           cluster = ghs2023$psu)[1:22,3]
+                           cluster = base.data$psu)[1:22,3]
 lydum_ghs <- rbind(lineary_dummies_ghs[1:4,],
                    ddr[,2],
                    lineary_dummies_ghs[5:22,])
 ghs_ly_dummies_tab <- ctab(lineary_dummies, 
-                           cluster = ghs2023$psu)
+                           cluster = base.data$psu)
 
 quadraticy_smooth <- lm(quad,
                         data=base.data)
 quadraticy_smooth_ghs <- ctab(quadraticy_smooth, 
-                           cluster = ghs2023$psu)[1:10,3] 
+                           cluster = base.data$psu)[1:10,3] 
 ghs_qy_smooth_tab <- ctab(quadraticy_smooth, 
-                           cluster = ghs2023$psu)
+                           cluster = base.data$psu)
 
 quadraticy_dummies <- lm(qdummy,
                          data=base.data)
 quadraticy_dummies_ghs <- ctab(quadraticy_dummies, 
-                           cluster = ghs2023$psu)[1:24,3]
+                           cluster = base.data$psu)[1:24,3]
 ghs_qy_dummies_tab <- ctab(quadraticy_dummies, 
-                           cluster = ghs2023$psu)
+                           cluster = base.data$psu)
 
 # hypothesis tests...
 vcov_cluster_ldum <- vcovCL(lineary_dummies, cluster = ~ psu)
@@ -886,11 +850,16 @@ all_qdum <- linearHypothesis(quadraticy_dummies,
                  test = "F")
 ```
 
-
 ```{r basemodel, dependson="lcs;ghs"}
-lcs_data <- lcs2014 
+lcs_data <- lcs2014 %>%
+  filter(y.month <= quantile(y.month, 0.95, na.rm = TRUE),
+         y.month >= quantile(y.month, 0.05, na.rm = TRUE)) %>%
+  zap_labels()
 
-ghs_data <- ghs2023 
+ghs_data <- ghs2023 %>%
+  filter(y.month <= quantile(y.month, 0.95, na.rm = TRUE),
+         y.month >= quantile(y.month, 0.05, na.rm = TRUE)) %>%
+  zap_labels()
 
 
 lcs_model <- lm(ysmooth,
@@ -910,285 +879,364 @@ lcs_inc <- coef(lcs_model)["y.month"]
 ghs_inc <- coef(ghs_model)["y.month"]
 ```
 
+Finally, we find that constant (per child, per adult) coefficients are not an entirely unreasonable approximation across both surveys.^[We test this with a joint hypothesis test accounting for data clustering. For all models in both years, the constant hypothesis is not rejected for adults. We find that in adults are responsible for rejecting the null hypothesis, when it is. Technically, test is whether (for example) the estimate for four children is four times that of one child, the estimate for four adults is two times the estimate for two adults, and so on. Although the null hypothesis is rejected in some of the joint tests, it is not rejected in all, and, therefore, we are comfortable continuing our focus on a per adult/child basis. All tests were corrected to account for potential clustering. Analysis was undertaken using the `sandwich` package [@sandwich1; @sandwich2] and `car` package [@car] in R. Some manipulation of results was based on the `broom` package [@broom].] For that reason, we will focus our attention on subjective poverty lines underscored by constant per adult and per child models, i.e, linear models.
 
-```{r exog-quantiles, dependson="model-formulas"}
 
-taus <- seq(0.01,0.95,0.01)
+# Sensitivity analysis
+
+For sensitivity analysis, we focused our attention on two main issues. The first relates to location and scale that offers implications for potential heteroskedasticity. Thus, we estimated equation \eqref{eq:continuous} across a range of quantiles of the data.^[Quantile regressions were estimated via the `quantreg` package [@quantreg], which was cluster bootstrapped for correct standard errors; the bootstrapped data was organised via the `purrr` package [@purrr].]  The second relates to potential endogeneity, which we address via standard and heteroskedasticity IV corrections [@Lewbel2012].^[These models make use of the `AER` package [@AER] and `REndo` package [@REndo] from R.] 
+
+## Quantile regression
+
+
+```{r lcs-exog-quantiles, dependson="model-formulas;lcs"}
+
+taus <- seq(0.05,0.95,0.05)
+Rboot <- 500
+
+lcs_data <- lcs2014 %>%
+  zap_labels()
 
 # Estimate quantile regressions for each tau
 # smooth adults/kids
-lcs_fit <- rq(ysmooth, 
-              data = lcs_data, tau = taus)
+# bootstrap for clusters, but I am not sure I want to do it
 
-lcs_tidy_fit <- tidy(lcs_fit, conf.int = FALSE, conf.level = 0.95)
+lcs_tidy_fit <- map_dfr(taus, function(tau) {
+  fit <- rq(ysmooth, data = lcs_data, tau = tau)
+  # summary with clustered bootstrap SEs
+  s <- summary(fit, se = "boot", cluster = lcs_data$psu, R = Rboot)
+  # s$coefficients should be a matrix/data.frame: rows = terms, cols ~ (est, se, t, p)
+  coef_df <- as.data.frame(s$coefficients)
+  # normalize column names (different quantreg versions use different colnames)
+  cn <- colnames(coef_df)
+  if (length(cn) >= 4) names(coef_df)[1:4] <- c("estimate", "std.error", "statistic", "p.value")
+  coef_df$term <- rownames(coef_df)
+  coef_df %>%
+    dplyr::select(term, estimate, std.error, statistic, p.value) %>%
+    mutate(tau = tau) %>%
+    # ensure consistent types
+    mutate(estimate = as.numeric(estimate), 
+           std.error = as.numeric(std.error))
+})
+  
 
 
-ghs_fit <- rq(ysmooth, 
-              data = ghs_data, tau = taus)
-#summary(fit, se = "boot")
-#summary(fit)[c(1,20)]
-
-ghs_tidy_fit <- tidy(ghs_fit, conf.int = FALSE, conf.level = 0.95)
 ```
 
 
-## Subjective poverty
+```{r ghs-exog-quantiles, dependson="model-formulas;ghs"}
 
-Before calculating the subjective poverty lines, we present the main household structure estimates from the linear and quadratic models; see Table \@ref(tab:linear-kids-adults-table). Four important take-aways can be gleaned from this table. The first is that constant coefficients for each adult and child is a reasonable approximation across both surveys.^[We test this with a joint hypothesis test accounting for data clustering. For all models in both years, the constant hypothesis is not rejected for adults. Only for the linear model in 2014 is the joint test of constant parameters rejected at a 0.05 level of confidence; it is not rejected for the the three remaining. When we jointly test for constancy for adults and children, it is rejected for for both data sources assuming a 0.05 level of confidence. Technically, this is a test whether (for example) the estimate for four children is four times that of one child, the estimate for four adults is two times the estimate for two adults, and so on.] Second, required minimum income is increasing in the number of adults and children, while the increase per child is estimated to be larger than for an adult. Thus, required income increases with household size, and moreso for children than adults. The third is that required income per child and adult is larger in 2023 than it was in 2014/15. Each of these three suggest increasing subjective poverty lines for household size and over time. However, the fourth observation is that the intercept is lower in 2023 than in 2014 which lowers the reference level for subjective poverty. After combining the third and fourth observations, whether the lines will be higher or lower in 2023 is an empirical question, and, therefore, we will compute the lines for both surveys for comparison. See Table \@ref{tab:spl-table} for those computations.
+taus <- seq(0.05,0.95,0.05)
+Rboot <- 500
 
-```{r linear-kids-adults-table, dependson="linear-models; linear-models-ghs", results = "asis"}
+ghs_data <- ghs2023 %>%
+  zap_labels
 
-# Will build simple tables for the adults and kids
-# components of the models
-# Goal is just to show if this really matters..
-# Effect sizes...
+# Estimate quantile regressions for each tau
+# smooth adults/kids
+# bootstrap for clusters, but I am not sure I want to do it
 
-smooth.tab.names <- c("Intercept","","Income", "",
-                      "Squared Income","",
-                      "Adults in hh", "", 
-                      "Children in hh","")
-smooth.tab <- tibble(rnames = smooth.tab.names, 
-                     ly = lysmooth_tab$results, 
-                     qy = quadraticy_smooth_tab$results,
-                     ly23 = lysmooth_ghs$results, 
-                     qy23 = quadraticy_smooth_ghs$results)
+ghs_tidy_fit <- map_dfr(taus, function(tau) {
+  fit <- rq(ysmooth, data = ghs_data, tau = tau)
+  # summary with clustered bootstrap SEs
+  s <- summary(fit, se = "boot", cluster = ghs_data$psu, R = Rboot)
+  # s$coefficients should be a matrix/data.frame: rows = terms, cols ~ (est, se, t, p)
+  coef_df <- as.data.frame(s$coefficients)
+  # normalize column names (different quantreg versions use different colnames)
+  cn <- colnames(coef_df)
+  if (length(cn) >= 4) names(coef_df)[1:4] <- c("estimate", "std.error", "statistic", "p.value")
+  coef_df$term <- rownames(coef_df)
+  coef_df %>%
+    dplyr::select(term, estimate, std.error, statistic, p.value) %>%
+    mutate(tau = tau) %>%
+    # ensure consistent types
+    mutate(estimate = as.numeric(estimate), 
+           std.error = as.numeric(std.error))
+})
 
-dummies.tab.names <- c("Intercept","","Income", "",
-                      "Squared Income","",
-                      "One child","","Two children","",
-                      "Three children","", "Four children","",
-                       "Two adults","", "Three adults","",
-                      "Four adults","", "Five adults","",
-                      "Six adults","")
-dummies.tab <- tibble(rnames = dummies.tab.names, 
-                      ly = lydum_tab$results, 
-                      qy = quadraticy_dummies_tab$results, 
-                      ly23 = lydum_ghs$results, 
-                      qy23 = quadraticy_dummies_ghs$results)
+```
+
+In a follow-up to the standard regressions, we estimated a series of quantile models to capture both location and scale effects in the data; the data was not trimmed for the quantile models, because quantile regressions are robust to the presence of potential outliers that might affect ordinary linear regression coefficients [@Angrist2009MHE]. Such a model inherently captures non-linearities in the data, possibly arising from heteroskedasticity. In Figures \@ref(fig:exog-plots-kids) to \@ref(fig:exog-plots-intercept), we illustrate the regression parameters for children, adults, income and the intercept respectively; we include the cluster-bootstrapped 95% confidence interval around those estimates in each figure. We also illustrate the mean estimate, which arises from the uncorrected ordinary least squares regression on the trimmed data. Each figure contains two panels, one for the Living Conditions Survey data; the other for the General Household Survey data.
+
+```{r exog-plots-kids, dependson="lcs-exog-quantiles; ghs-exog-quantiles;basemodel", fig.cap = "Children quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+
+# lcs
+lcs_tidy_fit %>%
+  filter(term == "kids") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = lcs_kids, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Child estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+#plot_drinker <- 
+ghs_tidy_fit %>%
+  filter(term == "kids") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = ghs_kids, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Child estimate"
+  ) +
+  theme_minimal(base_size = 12)
 
 
-results.tab <- rbind(smooth.tab, dummies.tab)
+```
 
-kable(results.tab, format = "latex", align='lrrrr',
-      row.names = F,
-      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+As can be inferred from the figures, there are non-linearities in the underlying relationship between required minimum income, the number of children, the number of adults, actual household income and the intercept term -- each of these is important for computing a subjective poverty line. Furthermore, the nonlinear relationship is not constant over time.
+
+```{r exog-plots-adults, dependson="lcs-exog-quantiles; ghs-exog-quantiles;basemodel", fig.cap = "Adult quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+
+# lcs
+lcs_tidy_fit %>%
+  filter(term == "adults") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = lcs_adults, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Adult estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+#plot_drinker <- 
+ghs_tidy_fit %>%
+  filter(term == "adults") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = ghs_adults, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Adult estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+
+```
+
+For children, see Figure \@ref(fig:exog-plots-kids), the quantile gradient is bumpy for the LCS data, although generally positive and mostly increasing. For the GHS data the gradient follows a smoother upward-sloped path. Furthermore, the GHS child estimates are larger at all quantiles than the LCS estimates. A somewhat similar pattern is observed for the adult-quantile gradient, Figure \@ref(fig:exog-plots-adults). It follows an increasing "trend", while the LCS estimates are lower than the GHS estimates across all quantiles. 
+
+```{r exog-plots-income, dependson="lcs-exog-quantiles; ghs-exog-quantiles;basemodel", fig.cap = "Income quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+
+# lcs
+lcs_tidy_fit %>%
+  filter(term == "y.month") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = lcs_inc, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Income estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+#plot_drinker <- 
+ghs_tidy_fit %>%
+  filter(term == "y.month") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = ghs_inc, color = "red", 
+             linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Income estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+
+```
+
+With respect to income, we continue to see increasing estimates across the quantiles for both the LCS and the GHS, Figure \@ref(fig:exog-plots-income). Furthermore, the estimates are fairly similar across the quantiles, although the GHS estimates are slightly larger for nearly all quantiles. Finally, the intercept-quantile plots -- Figure \@ref(fig:exog-plots-intercept) -- are rather different over the two surveys: it is positive and increasing for the LCS data, but only positive for some quantiles and decreasing over many of the quantiles in 2023, yielding a negative intercept for a wide range of quantiles. However, the dashed line plots the regression coefficient arising after the bottom and top 5% have been trimmed; that coefficient is positive, also shown in Tables \@ref(tab:smooth-table) and \@ref(tab:dummies-table). Thus, trimming is necessary for the resulting poverty lines to be plausible, as it insures positive intercepts..
+
+```{r basemodel-intercept, dependson="lcs;ghs"}
+lcs_data <- lcs2014 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE)) %>%
+  zap_labels()
+
+ghs_data <- ghs2023 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE)) %>%
+  zap_labels()
+
+
+lcs_model <- lm(ysmooth,
+                data=lcs_data)
+
+ghs_model <- lm(ysmooth,
+                data=ghs_data)
+
+
+lcs_int <- coef(lcs_model)["(Intercept)"]
+ghs_int <- coef(ghs_model)["(Intercept)"]
+
+```
+
+
+```{r exog-plots-intercept, dependson="lcs-exog-quantiles; ghs-exog-quantiles;basemodel-intercept", fig.cap = "Intercept quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+
+# lcs
+lcs_tidy_fit %>%
+  filter(term == "(Intercept)") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+  geom_line(color = "blue", linewidth = 1.2) +
+   geom_hline(yintercept = lcs_int, color = "red", 
+              linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Intercept estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+#plot_drinker <- 
+ghs_tidy_fit %>%
+  filter(term == "(Intercept)") %>%
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>%
+ggplot(aes(x = tau, y = estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = "skyblue", alpha = 0.4) +
+   geom_line(color = "blue", linewidth = 1.2) +
+  geom_hline(yintercept = ghs_int, color = "red", 
+              linetype = "dashed") +
+  labs(
+    title = "Quantile Regression Coefficients with 95% CI",
+    x = "Quantile (tau)", 
+    y = "Intercept estimate"
+  ) +
+  theme_minimal(base_size = 12)
+
+
+```
+
+```{r quant-tab, dependson="lcs-exog-quantiles;ghs-exog-quantiles", results="asis"}
+
+coef_subset <- lcs_tidy_fit %>%
+  filter(term %in% c("adults","kids","y.month"),
+         tau %in% c("0.15","0.3","0.45","0.6","0.75")) %>%
+  dplyr::select(tau,term,estimate) %>%
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  )
+
+lcs_change <- coef_subset %>%
+  transmute(#tau,
+            dlny_da = adults/(1-y.month),
+            dlny_dk = kids/(1-y.month)) %>%
+  t()
+
+coef_subset <- ghs_tidy_fit %>%
+  filter(term %in%  c("adults","kids","y.month"),
+         tau %in% c("0.15","0.3","0.45","0.6","0.75")
+         ) %>%
+  dplyr::select(tau,term,estimate) %>%
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  )
+
+ghs_change <- coef_subset %>%
+  transmute(#tau,
+            dlny_da = adults/(1-y.month),
+            dlny_dk = kids/(1-y.month)) %>%
+  t()
+
+change_tab <- rbind(lcs_change,
+                    ghs_change)
+
+rownames(change_tab) = c("Adult change",
+                          "Child change",
+                          "Adult change",
+                          "Child change")
+
+kable(change_tab, format = "latex", align='rrrrr',
+      row.names = T, digits = 2,
+      booktabs=TRUE, escape=FALSE, longtable=FALSE,
       linesep="",
-      caption="Effect size estimates for adults and children on (log) reported minimum household income from the Living Conditions Survey 2014-15 and General Household Survey 2023",
-      col.names=c("Composition","Linear","Quadratic","Linear","Quadratic")) %>%
-  add_header_above(c(" "=1, "Living Conditions" = 2, "General Household" = 2)) %>%
-  pack_rows("Adults and children as continuous variables", 1, 10) %>%
-  row_spec(10, hline_after = TRUE) %>%
-  pack_rows("Adults and children as categorical variables", 11, 34) %>%
+      caption="Estimated change in required minimum income per adult/child at different quantiles of the required minimum income distribution",
+      col.names=c("","$\\tau$ = 0.15",  "$\\tau$ = 0.3", "$\\tau$ = 0.45", "$\\tau$ = 0.6", "$\\tau$ = 0.75")) %>%
+#  add_header_above(c(" "=1, "Living Conditions" = 2, "General Household" = 2)) %>%
+  pack_rows("Living Conditions Survey 2014/15", 1, 2) %>%
+  row_spec(2, hline_after = TRUE) %>%
+  pack_rows("General Household Survey 2023", 3,4) %>%
   #row_spec(34, hline_after = TRUE) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated coefficients across household types. Reported estimates limited to children and adults in the household. Models included the log of household income (Linear) as well as the matching square (Quadratic), and the total number of grants received in the household, as well as household head age, its square, gender, and population group. Models also included province, survey month, head education, marital status and settlement-type fixed effects.", escape=FALSE, general_title="",threeparttable=TRUE) 
-
-```
-
-**Is this really correct?** Before doing so, we are able to calculate the (percentage change) in required minimum income per adult and per child, for each of the survey years. Due to the fact that we cannot reject the null hypothesis that estimates are constant across adults and children, we limit our presentation our model suggests that the percentage increase in required minimum income per adult is constant, as is the percentage increase in required minimum income per child, although there is a difference between the adult and child percentage. 
-
-## Subjectively poor vs NT objectively poor?
-
-
-```{r lineary-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
-
-base.data <- lcs2014 
-
-model <- lm(ysmooth,
-            data=base.data)
-
-b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
-b1 <- b[3:4]          # just the kids and adult bit
-denom <- 1-b[2]
-
-dfdiff <- akmat %>% dplyr::select(adults, kids) %>%
-  as.matrix()
-
-spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
-
-spl.lin.yall <- akmat %>%
-  add_column(spl.linear = as.integer(spl.base)) 
-
-spl.lin.yall.table <- spl.lin.yall %>%
-  rename("spl" = "spl.linear") 
-
-```
-
-
-```{r quady-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
-
-base.data <- lcs2014 
-
-model <- lm(quad,
-            data=base.data)
-
-b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
-b1 <- b[4:5]          # just the kids and adult bit
-
-
-dfdiff <- akmat %>% dplyr::select(adults,kids) %>%
-  as.matrix()
-
-# This calculates for all household types at once... but no real roots?
-c <- (b[1] + (dfdiff %*% b1))
-bb <- b[2] - 1
-a <- b[3]
-
-discriminant <- (bb^2) - (4*a*c)
-
-# How to choose?
-root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
-root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
-
-# do not understand why not working?
-spl.base <-   root2 
-
-spl.quad.yall <- akmat %>%
-  dplyr::select(adults,kids) %>%
-  add_column(spl.quad = as.integer(spl.base))
-
-spl.quad.yall.table <- spl.quad.yall %>%
-  rename("spl" = "spl.quad") 
-```
-
-
-
-```{r lineary-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
-
-base.data <- ghs2023 
-
-model <- lm(ysmooth,
-            data=base.data)
-
-b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
-b1 <- b[3:4]          # just the kids and adult bit
-denom <- 1-b[2]
-
-dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
-  as.matrix()
-
-spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
-
-spl.lin.yall.2023 <- akmat %>%
-  dplyr::select(adults,kids) %>%
-  add_column(spl.linear = as.integer(spl.base)) 
-
-spl.lin.yall.table.2023 <- spl.lin.yall.2023 %>%
-  rename("spl" = "spl.linear") 
-
-```
-
-```{r quady-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
-
-base.data <- ghs2023 
-
-model <- lm(quad,
-            data=base.data)
-
-b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
-b1 <- b[4:5]          # just the kids and adult bit
-
-
-dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
-  as.matrix()
-
-# This calculates for all household types at once... but no real roots?
-c <- (b[1] + (dfdiff %*% b1))
-bb <- b[2] - 1
-a <- b[3]
-
-discriminant <- (bb^2) - (4*a*c)
-
-# How to choose?
-root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
-root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
-
-# do not understand why not working?
-spl.base <-   root2 
-
-spl.quad.yall.2023 <- akmat %>%
-  dplyr::select(adults,kids) %>%
-  add_column(spl.quad = as.integer(spl.base))
-
-spl.quad.yall.table.2023 <- spl.quad.yall.2023 %>%
-  rename("spl" = "spl.quad") 
-```
-
-
-```{r poor-data, dependson="lcs; lineary-spl-smooth; quady-spl-smooth", results="asis"}
-
-
-# This builds out a simple table...
-# How do we want to use this?
-poor.data <- left_join(lcs2014, spl.lin.yall,
-                       by = c("adults","kids")) %>%
-  left_join(spl.quad.yall, by = c("adults","kids")) %>%
-  mutate(hhsize = adults + kids,
-         lbpoverty = hhsize * 647,
-         ubpoverty = hhsize * 992,
-         y = y.month,
-         x = x.month) %>%
-  group_by(adults,kids) %>%
-  summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
-            lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
-            quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
-            obj.poor.lb = round(100*sum(y < lbpoverty)/n(),2),
-            obj.poor.ub = round(100*sum(y < ubpoverty)/n(),2)) %>%
-  ungroup() 
-
-  #
+  footnote(general = "Estimated changes in required minimum income at the household level per adult or child across quantiles of required minimum income; only a subset of quantiles are reported in the table.", escape=FALSE, general_title="",threeparttable=TRUE) 
   
-kable(poor.data, format = "latex", align='rrrrrrr',
-      row.names = F,
-      booktabs=TRUE, escape=FALSE, longtable=TRUE,
-      linesep="",
-      caption="Precentage of poor households by household structure type based on subjective and objective poverty lines from the Living Conditions Survey 2014-15",
-      col.names=c("Adults","Kids", "Own Value","Linear","Quadratic","Lower","Upper")) %>%
-  add_header_above(c(" "=2, "Subjective Measures"=3, "Objective Measures" = 2)) %>%
-  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated poverty percentages based on subjective poverty lines underscored by linear and quadratic estimates of minimum income levels compared to lower (ZAR 647 per capita in 2014) and upper bound poverty (ZAR 992 per capita) lines from national treasury. Percentages not weighted to the population. Own value represents the percentage of people whose reported income is exceeded by their reported minimum required income.", escape=FALSE, general_title="",threeparttable=TRUE) 
-
-
 ```
 
-
-```{r poor-data-ghs, dependson="ghs; lineary-spl-smooth-ghs; quady-spl-smooth-ghs", results="asis"}
-
-# This builds out a simple table...
-# How do we want to use this?
-poor.data <- left_join(ghs2023, spl.lin.yall.2023,
-                       by = c("adults","kids")) %>%
-  left_join(spl.quad.yall.2023, by = c("adults","kids")) %>%
-  mutate(hhsize = adults + kids,
-         lbpoverty = hhsize * 1058,
-         ubpoverty = hhsize * 1558,
-         y = y.month) %>%
-  group_by(adults,kids) %>%
-  summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
-            lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
-            quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
-            obj.poor.lb = round(100*sum(y < lbpoverty)/n(),2),
-            obj.poor.ub = round(100*sum(y < ubpoverty)/n(),2)) %>%
-  ungroup() 
-
-kable(poor.data, format = "latex", align='rrrrrrr',
-      row.names = F,
-      booktabs=TRUE, escape=FALSE, longtable=TRUE,
-      linesep="",
-      caption="Precentage of poor households by household structure type based on subjective and objective poverty lines from the General Household Survey 2023",
-      col.names=c("Adults","Kids", "Own Value","Linear","Quadratic","Lower","Upper")) %>%
-  add_header_above(c(" "=2, "Subjective Measures"=3, "Objective Measures" = 2)) %>%
-  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated poverty percentages based on subjective poverty lines underscored by linear and quadratic estimates of minimum income levels compared to lower (ZAR 1058 per capita in 2023) and upper bound poverty (ZAR 1558 per capita) lines from national treasury. Percentages not weighted to the population. Own value represents the percentage of people whose reported income is exceeded by their reported minimum required income.", escape=FALSE, general_title="",threeparttable=TRUE) 
+These parameters can be used to estimate both the underlying poverty lines and changes in the minimum required income per adult and per child -- see equation \eqref{eq:linear-spl} and the implied derivative with respect to adults and children -- at different quantiles of minimum required income. At this point, we report only the changes over a subset of quantiles in Table \@ref(tab:quant-tab). The estimates suggest that the minimum required income per adult/child is higher in 2023 than it was in 2014/15. The range of estimates for children is R110 to R380 in 2014/15, given the chosen quantiles,  but from R300 to R2 818 in 2023. Applying a 50% inflation factor to the LCS data would only yield R165 to R570 for children; thus, the estimated increase per child is substantially greater than that implied by inflation. For adults, the range is R35 to R550 (R50 to R825 after the 50% inflation adjustment) in 2014/15, compared to R250 to R1 787 in 2023; again, the estimated increase per adult far exceeds the inflation adjustment applied to the 2014/15 data. 
 
 
-```
+## Potential endogeneity
 
-# Sensitivity
 
 ```{r lcs_hetiv, dependson="lcs; model-formulas"}
 
-lcs_data <- lcs2014 
+lcs_data <- lcs2014 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
 lcs_base <- lm(ysmooth,
                data=lcs_data)
@@ -1274,13 +1322,15 @@ one_beta = 1-tidy_adults$estimate[yy]
 k2 = theta/one_beta
 a2 = phi/one_beta
 
-lcs_lnyiv <- hetErrorsIV(lnminq ~ adults + kids +  age + 
-                           age.sq + hhh.male + ethnic + province +
-                           settle + marital + education + month +
-                           grants + y.month | y.month | 
-                           IIV(age, grants) | x.month,
-                         data=lcs_data, 
-                         verbose = FALSE)
+#Het IV fails, because I do not have heteroskedasiticity with age and grants
+lcs_lnyiv <- ivreg(
+  lnminq ~ adults + kids + age + age.sq + hhh.male + 
+    ethnic + province + settle + marital + education + 
+    month + grants + y.month |
+    adults + kids + age + age.sq + hhh.male + ethnic + province +
+    settle + marital + education + month + grants + x.month,
+  data = lcs_data
+)
 
 # Cluster-robust vcov
 vcov_cluster <- vcovCL(lcs_lnyiv, cluster = lcs_data$psu)
@@ -1291,7 +1341,7 @@ tidy_lny <- tidy(ct)
 
 kk = which(tidy_lny$term=="kids")
 aa = which(tidy_lny$term=="adults")
-yy = which(tidy_lny$term=="lny")
+yy = which(tidy_lny$term=="y.month")
 
 theta = tidy_lny$estimate[kk]
 #ifelse(tidy_kids$p.value[kk] > 0.05,
@@ -1315,6 +1365,8 @@ lcs_tab = rbind(a,k)
 ```{r ghs_hetiv, dependson="ghs; model-formulas"}
 
 ghs_data <- ghs2023 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE)) %>%
   # categorical "x" values, not really useful as CF
   mutate(lnx = as.numeric(x)) 
 #%>%
@@ -1404,13 +1456,15 @@ one_beta = 1-tidy_adults$estimate[yy]
 k2 = theta/one_beta
 a2 = phi/one_beta
 
-ghs_lnyiv <- hetErrorsIV(lnminq ~  adults + kids +  age + 
-                           age.sq + hhh.male + ethnic + province +
-                           settle + marital + education + month +
-                           grants + y.month | y.month | 
-                           IIV(age, grants, x) ,
-                         data=ghs_data, 
-                         verbose = FALSE)
+## Heteroscedasticity fails, so just using IV
+ghs_lnyiv <- ivreg(
+  lnminq ~ adults + kids + age + age.sq + hhh.male + 
+    ethnic + province + settle + marital + education + 
+    month + grants + y.month |
+    adults + kids + age + age.sq + hhh.male + ethnic + province +
+    settle + marital + education + month + grants + x,
+  data = ghs_data
+)
 
 # Cluster-robust vcov
 vcov_cluster <- vcovCL(ghs_lnyiv, cluster = ghs_data$psu)
@@ -1421,7 +1475,7 @@ tidy_lny <- tidy(ct)
 
 kk = which(tidy_lny$term=="kids")
 aa = which(tidy_lny$term=="adults")
-yy = which(tidy_lny$term=="lny")
+yy = which(tidy_lny$term=="y.month")
 
 theta = tidy_lny$estimate[kk]
 #ifelse(tidy_lny$p.value[kk] > 0.05,
@@ -1442,29 +1496,25 @@ k = cbind(k0,k1,k2,k3)
 ghs_tab = rbind(a,k)
 ```
 
-For sensitivity analysis, we focused our attention on two main issues. The first relates to potential endogeneity. The second relates to functional form. To consider the first, we applied heteroskedasticity IV estimates [@Lewbel2012]. For the second, we considered a range of additional estimates. We included a quadratic (log) income term; we treated each number of adults and children as separate dummies; we estimated a quantile regression; and, we estimated a nonparametric regression. 
 
-## Potential endogeneity
+We are concerned with three potential sources of endogeneity. There are potential unobserved factors that correlate with household income, the number of children and the number of adults in the household. Given three potential sources of endogeneity, it would be ideal to incorporate three instruments. Uncovering one instrument is difficult -- finding three is unrealistic. Therefore, we undertake a triangulation exercise, examining the results that would arise under the assumption that only one of the three variables is endogenous at any one time.
 
-For the analysis, we are concerned with three potential sources of endogeneity. There are potential unobserved factors that correlate with household income and there are potential unobserved determinants of both the number of children and the number of adults in the household. Given three potential sources of endogeneity, it would be ideal to incorporate three instruments. Uncovering one instrument is difficult -- finding three is unrealistic. Therefore, we undertake a triangulation exercise, examining the results that would arise under the assumption that only one of the three variables is endogenous at any one time.
+As noted earlier, the literature has suggested that household size is partly affected by grant access - a variable we incorporated into the analysis; in our view, it is not likely to meet the exclusion restriction, since grants are a form of income, and are, therefore, likely to correlate directly with required income. Within South Africa, grants are strongly linked to age. However, age is expected to directly influence minimum income requirements through its proximate relationship with life experience. Although using such variables directly is problematic, we use their demeaned values along with that of income, to capture heteroskedasticity and identify the model parameters, as suggested by @Lewbel2012.
 
-As noted earlier, the literature has suggested that household size is partly affected by grant access - a variable we incorporated into the analysis; in our view, it is not likely to meet the exclusion restriction, since grants are a form of income, and are, therefore, likely to correlate directly with required income. Within South Africa, grants are strongly linked to age. However, age is expected to directly influence minimum income requirements through its proximate relationship with life experience. Although using such variables directly is problematic, we use their demeaned values along with that of log income, to capture the heteroskedasticity and identify the model parameters.
-
-We further use those parameters to estimate the percentage change in minimum required income arising from the model. These results are reported in Table \@ref(tab:endog-tab). The table contains four rows, two each for the two different surveys, and, within a survey, one for the child 'effect' and one for the 'adult' effect. The discussion related to equation \eqref{eq:linear-spl}, the derivative of which defines the values presented in the table, and are the percentage change in minimum required income per adult (or child), which is assumed to be constant, given the model estimated.
 
 ```{r endog-tab, dependson="lcs_hetiv;ghs_hetiv", results="asis"}
 
 results.tab = rbind(lcs_tab,ghs_tab)
-rownames(results.tab) = c("Adult percentage change",
-                          "Child percentage change",
+rownames(results.tab) = c("Adult change",
+                          "Child change",
                           "Adult change",
                           "Child change")
 
 kable(results.tab, format = "latex", align='rrrr',
-      row.names = T, digits = 4,
+      row.names = T, digits = 2,
       booktabs=TRUE, escape=FALSE, longtable=FALSE,
       linesep="",
-      caption="Estimated percent change in required minimum income per adult/child with and without endogeneity correction",
+      caption="Estimated required minimum income per adult/child with and without endogeneity correction based on linear models",
       col.names=c("Uncorrected",  "Child Endog", "Adult Endog", "Income Endog")) %>%
 #  add_header_above(c(" "=1, "Living Conditions" = 2, "General Household" = 2)) %>%
   pack_rows("Living Conditions Survey 2014/15", 1, 2) %>%
@@ -1472,192 +1522,276 @@ kable(results.tab, format = "latex", align='rrrr',
   pack_rows("General Household Survey 2023", 3,4) %>%
   #row_spec(34, hline_after = TRUE) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated percentage changes in required minimum income at the household level per adult or child, depending on whether none (uncorrected), adults (adult endog), children (child endog) or income (income endog) was treated as a potentially endogenous variable. Parameter estimates were clustered. Endogeneity corrections based on heteroskedastic IV, where the age of the household head, (log) household income - except when income was treated as endogenous - and the number of grants in the household were demeaned for the IV estimate. When income was treated as endogenous, only age and the number of grants were used, while (log) expenditure was treated as an external instrument.", escape=FALSE, general_title="",threeparttable=TRUE) 
+  footnote(general = "Estimated changes in required minimum income at the household level per adult or child, depending on whether none (uncorrected), adults (adult endog), children (child endog) or income (income endog) was treated as a potentially endogenous variable. Parameter estimates were clustered. Endogeneity corrections based on heteroskedastic IV, where the age of the household head, (log) household income - except when income was treated as endogenous - and the number of grants in the household were demeaned for the IV estimate. When income was treated as endogenous, a measure of expenditure is used as an instrument.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
 
-The first column of Table \@ref(tab:endog-tab) represents the estimate from an uncorrected model -- previously discussed. The second columen assumes that the number of adults in the household is endogenous, correcting for that using the @Lewbel2012 heteroskedasticity instrument method; the third coloumn assumes that it is, instead, the number of children that are endogenous and uses the same estimator. The last column reports results based on the assumption that income is the endogenous variable. 
+We further use those parameters to estimate the change in minimum required income per child/adult arising from the model. These results are reported in Table \@ref(tab:endog-tab). The table contains four rows, two each for the two different surveys, and, within a survey, one for the child 'effect' and one for the 'adult' effect. The first column of Table \@ref(tab:endog-tab) represents the estimate from an uncorrected model. The second column assumes that the number of adults in the household is endogenous, correcting for that using the @Lewbel2012 heteroskedasticity instrument method; the third column assumes that, instead, the number of children are endogenous and uses the same estimator. The last column reports results based on the assumption that income is the endogenous variable, but estimation is based on standard IV, where expenditure is used as an instrument for income. 
 
-The results in the table suggest a wide range of results -- with the uncorrected results closer to the middle of that range. Uncorrected, as previously reported, implies that minimum increases by approximately 5-6% per child and adult in 2014/15. Applying heteroskedasticity IV corrections led to adult percentage changes just below 0 (-1.4%) to approximately 11%, and chlid percentage changes between -4.4 and 6.6%. This (marginal) percentage change was generally larger for the 2023 data. For adults the increase was approximately 9.8%; for children, the increase was closer to 15.8%. After applying the @Lewbel2012 estimator to the 2023 data, the adult percentage change ranged from 0 to 12.6%, while the child percentage change ranged from 0 to 21.3%. 
+The results in the table suggest a wide range of results. For the uncorrected model (LCS 2014/15), we estimate the required minimum income per adult and child to be R240 and R370, respectively; this lies somehwere between the 0.6 and 0.75 quantile results in Table \@ref(tab:quant-tab). Applying heteroskedasticity IV, first for potential endogeneity in the number of children, led to similar adult "costs", but a child "cost" reduction of approximately one-half. Treating adults as the endogenous regressor further reduced the child cost, but increased the adult cost by nearly a factor of four. Treating income as endogenous, however, led to the elimination of all child and adult costs. Whether expenditure is a reasonable instrument, despite meeting standard endogeneity test expectations, is open to debate.
 
+Similar to what was observed for the LCS data, we find that treating income as an endogenous variable using the GHS data reduces the minimum required income per adult/child to zero. On the other hand, applying @Lewbel2012 to the number of children in the household increases required income per child by a factor of seven, but slightly reduces the adult effect. When applying @Lewbel2012 to the adults, it is the adult effect that increases by a factor of three, while the child effect remains similar. 
 
+Although @koch2022 uncovers some changes in underlying equivalence scales following endogeneity correction, they are not on the same scale as is observed here. Despite the scale of the possible endogeneity effects, we continue to make use of the uncorrected results. They are a reasonable lower bound on the additional required minimum income per adult/child. Thus, they also represent a reasonable lower bound for the calculation of subjective poverty lines. Although we estimate zeroes when we correct for endogeneity in income, expenditure may not be an appropriate instrument, when the exclusion restriction is taken into consideration. Minimum required income is likely to be influenced by expenditure patterns in the household, as at least some of that income must be used to cover some proportion of the expenditures.
 
+# Subjective poverty 
+ 
+From our results, we have observed that required minimum income is increasing in the number of adults and children, such that required income increases with household size. As already noted, the required income gradient per child and adult is increasing over time; so is its proportionality to actual income. Each of these implies larger subjective poverty lines over time. However, the intercept is lower in 2023 than in 2014 -- a lower intercept reduces the reference level for subjective poverty.^[In results not shown, the intercept was estimated to be negative in 2023, when the data was not trimmed. Furthermore, it resulted in negative subjective poverty lines for non-child households. Once the data was trimmed, the intercept became positive in sign, and the resulting poverty lines also became positive.] 
 
-## Quantile regression
+## Poverty lines
 
-In an additional follow-up, we estimated a series of quantile models. Importantly, quantile regression is designed to model both location and scale. Such a model inherently captures non-linearities in the data, possibly arising from heteroskedasticity (ANGRIST-PISHKE??). In Figures \@ref(fig:exog-plots-kids) to \@ref(fig:exog-plots-income), we illustrate the regression parameters for children, adults and log income, respectively; we include the bootstrapped 95% confidence interval around those estimates in each figure. We also illustrate the mean estimate, which arises from the uncorrected ordinary least squares regression. Each Figure contains two panels, one for the Living Conditions Survey data; the other for the General Household Survey data.
+In other words, whether the subjective lines are higher or lower in 2023 is an empirical question, and, therefore, we will compute the lines for both surveys. See Table \@ref(tab:spl-table) for those computations. The table contains direct estimates from the LCS data, as well as inflation-adjusted values from the same; the adjustment is 150% larger than the direct values. It also includes direct estimates from the GHS data. For adult-only households in the LCS, poverty lines are higher than for similar households in the GHS -- here the comparison is inflation adjusted LCS to direct GHS, while LCS poverty lines are usually lower for four-child households. For the rest of the household types, the pattern is nuanced: often smaller households will have lower LCS lines, while the opposite is true for larger households.
 
-```{r exog-plots-kids, dependson="exog-quantiles;basemodel", fig.cap = "Children quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+Although it is somewhat difficult to ascertain a pattern from the subjective poverty lines, part of that is due to the 150% inflation adjustment applied to the 2014/15 data. Of more relevance, however, is whether the poverty rates have increased or decreased, for which types of households over time and how that relates to the money-metric poverty lines employed by Statistics South Africa. We now turn to these issues.
 
-# lcs
-lcs_tidy_fit %>%
-  filter(term == "kids") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = lcs_kids, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Child estimate"
-  ) +
-  theme_minimal(base_size = 12)
+## Subjectively poor vs NT objectively poor?
 
-#plot_drinker <- 
-ghs_tidy_fit %>%
-  filter(term == "kids") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = ghs_kids, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Child estimate"
-  ) +
-  theme_minimal(base_size = 12)
+Tables \@ref(tab:poor-data) and \@ref(tab:poor-data-ghs) present a range of in-sample poverty estimates. Each table contains 5 columns, three based on subjective measures: (i) whether the household income is at least as large as its minimum requirement, (ii) whether its income exceeds the linear model determined subjective poverty line, and (iii) whether its income exceeds the quadratic model determined subjective poverty line. There are also two objective measures, (iv) whether per capita household income meets the per capita lower bound national poverty line and (v) whether per capita household income meets the per capita upper bound national poverty line. 
 
+As expected, since the lower bound objective poverty line is lower than the upper bound poverty line, poverty rates are always higher under the upper bound. With the LCS data, the lowest lower bound poverty rate is less than 10% of the relevant households (2 adults and no children). With the GHS data, the lowest (lower bound) rate is 15.3% for single adult households. 
 
-```
+```{r lineary-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
 
-As can be implied from the figures, there are nonlinearities in the underlying relationship between (log) required minimum income, the number of children, the number of adults, and actual (log) household income. Furthermore, the nonlinear relationship is not constant over time, although the adult-quantile gradient is reasonably similar over the two surveys. The child-quantile gradient switches sign, from negative to positive, between 2014 and 2023, while the (log) income-quantile gradient changes from an inverse$-U$ in 2014 to an inverse$-J$ (it mostly negative) in 2023. 
+base.data <- lcs2014 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
-```{r exog-plots-adults, dependson="exog-quantiles;basemodel", fig.cap = "Adult quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+model <- lm(ysmooth,
+            data=base.data)
 
-# lcs
-lcs_tidy_fit %>%
-  filter(term == "adults") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = lcs_adults, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Child estimate"
-  ) +
-  theme_minimal(base_size = 12)
+b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
+b1 <- b[3:4]          # just the kids and adult bit
+denom <- 1-b[2]
 
-#plot_drinker <- 
-ghs_tidy_fit %>%
-  filter(term == "adults") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = ghs_adults, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Adult estimate"
-  ) +
-  theme_minimal(base_size = 12)
+dfdiff <- akmat %>% dplyr::select(adults, kids) %>%
+  as.matrix()
 
+spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
+
+spl.lin.yall <- akmat %>%
+  add_column(spl.linear = as.integer(spl.base)) 
+
+spl.lin.yall.table <- spl.lin.yall %>%
+  rename("spl" = "spl.linear") 
+
+spl.lin.yall.50 <-akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.linear = 1.5*as.integer(spl.base)) 
+
+spl.lin.yall.table.50 <- spl.lin.yall.50 %>%
+  rename("spl" = "spl.linear") 
 
 ```
 
-Because the parameters in these models can be used to estimate the underlying percentage changes in minimum required income per adult and per child, but at different quantiles of minimum required income, we do just that. The results are reported in Table \@ref(tab:quant-tab). Again, the results relate directly to equation \eqref{eq:linear-spl}. As we have noted, the derivative of the equation defines the values presented in the table. They represent the percentage change in minimum required income per adult (or child) at that particular quantile.
 
-```{r exog-plots-income, dependson="exog-quantiles;basemodel", fig.cap = "Income quantile plots", fig.subcap = c("Living Conditions Survey","General Household Survey"), out.width=c("48%","48%")}
+```{r quady-spl-smooth, dependson="lcs-sub; lcs; model-formulas"}
 
-# lcs
-lcs_tidy_fit %>%
-  filter(term == "lny") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = lcs_inc, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Income estimate"
-  ) +
-  theme_minimal(base_size = 12)
+base.data <- lcs2014 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
-#plot_drinker <- 
-ghs_tidy_fit %>%
-  filter(term == "lny") %>%
-ggplot(aes(x = tau, y = estimate)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = "skyblue", alpha = 0.4) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_hline(yintercept = ghs_inc, color = "red", 
-             linetype = "dashed") +
-  labs(
-    title = "Quantile Regression Coefficients with 95% CI",
-    x = "Quantile (tau)", 
-    y = "Income estimate"
-  ) +
-  theme_minimal(base_size = 12)
+model <- lm(quad,
+            data=base.data)
+
+b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
+b1 <- b[4:5]          # just the kids and adult bit
+
+
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>%
+  as.matrix()
+
+# This calculates for all household types at once... but no real roots?
+c <- (b[1] + (dfdiff %*% b1))
+bb <- b[2] - 1
+a <- b[3]
+
+discriminant <- (bb^2) - (4*a*c)
+
+# How to choose?
+root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
+root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
+
+# do not understand why not working?
+spl.base <-   root2 
+
+spl.quad.yall <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.quad = as.integer(spl.base))
+
+spl.quad.yall.table <- spl.quad.yall %>%
+  rename("spl" = "spl.quad") 
+
+spl.quad.yall.50 <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.quad = 1.5*as.integer(spl.base))
+
+spl.quad.yall.table.50 <- spl.quad.yall.50 %>%
+  rename("spl" = "spl.quad") 
 
 
 ```
 
-```{r quant-tab, dependson="exog-quantiles", results="asis"}
+```{r lineary-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
 
-coef_subset <- lcs_tidy_fit %>%
-  filter(term %in%  c("adults","kids","lny"), 
-         tau %in% c(0.2, 0.4, 0.6, 0.8)) %>%
-  dplyr::select(tau,term,estimate) %>%
-  pivot_wider(
-    names_from = term,
-    values_from = estimate
-  )
+base.data <- ghs2023 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
 
-lcs_change <- coef_subset %>%
-  transmute(#tau,
-            dlny_da = adults/(1-lny),
-            dlny_dk = kids/(1-lny)) %>%
-  t()
+model <- lm(ysmooth,
+            data=base.data)
 
-coef_subset <- ghs_tidy_fit %>%
-  filter(term %in%  c("adults","kids","lny"), 
-         tau %in% c(0.2, 0.4, 0.6, 0.8)) %>%
-  dplyr::select(tau,term,estimate) %>%
-  pivot_wider(
-    names_from = term,
-    values_from = estimate
-  )
+b <- coef(model)[1:4] # does not count non-income and non-adult/child vars.
+b1 <- b[3:4]          # just the kids and adult bit
+denom <- 1-b[2]
 
-ghs_change <- coef_subset %>%
-  transmute(#tau,
-            dlny_da = adults/(1-lny),
-            dlny_dk = kids/(1-lny)) %>%
-  t()
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
+  as.matrix()
 
-change_tab <- rbind(lcs_change,
-                    ghs_change)
+spl.base <-   (b[1] + (dfdiff %*% b1)) * (1/denom) 
 
-rownames(change_tab) = c("Adult percentage change",
-                          "Child percentage change",
-                          "Adult change",
-                          "Child change")
+spl.lin.yall.2023 <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.linear = as.integer(spl.base)) 
 
-kable(change_tab, format = "latex", align='rrrr',
-      row.names = T, digits = 4,
-      booktabs=TRUE, escape=FALSE, longtable=FALSE,
-      linesep="",
-      caption="Estimated percent change in required minimum income per adult/child with and without endogeneity correction",
-      col.names=c("$\\tau$ = 0.2",  "$\\tau$ = 0.4", "$\\tau$ = 0.6", "$\\tau$ = 0.8")) %>%
-#  add_header_above(c(" "=1, "Living Conditions" = 2, "General Household" = 2)) %>%
-  pack_rows("Living Conditions Survey 2014/15", 1, 2) %>%
-  row_spec(2, hline_after = TRUE) %>%
-  pack_rows("General Household Survey 2023", 3,4) %>%
-  #row_spec(34, hline_after = TRUE) %>%
-  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
-  footnote(general = "Estimated percentage changes in required minimum income at the household level per adult or child across quantiles of required minimum income; only a subset of quantiles are reported in the table.", escape=FALSE, general_title="",threeparttable=TRUE) 
+spl.lin.yall.table.2023 <- spl.lin.yall.2023 %>%
+  rename("spl" = "spl.linear") 
+
+spl.lin.yall.2023.50 <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.linear = 0.5*as.integer(spl.base)) 
+
+spl.lin.yall.table.2023.50 <- spl.lin.yall.2023.50 %>%
+  rename("spl" = "spl.linear") 
+
+
+```
+
+```{r quady-spl-smooth-ghs, dependson="lcs-sub; ghs; model-formulas"}
+
+base.data <- ghs2023 %>%
+  filter(minq <= quantile(minq, 0.95, na.rm = TRUE),
+         minq >= quantile(minq, 0.05, na.rm = TRUE))
+
+model <- lm(quad,
+            data=base.data)
+
+b <- coef(model)[1:5] # does not count non-income and non-adult/child vars.
+b1 <- b[4:5]          # just the kids and adult bit
+
+
+dfdiff <- akmat %>% dplyr::select(adults,kids) %>% 
+  as.matrix()
+
+# This calculates for all household types at once... but no real roots?
+c <- (b[1] + (dfdiff %*% b1))
+bb <- b[2] - 1
+a <- b[3]
+
+discriminant <- (bb^2) - (4*a*c)
+
+# How to choose?
+root1 <- (-bb + sqrt(discriminant))*(1/(2*a))
+root2 <- (-bb - sqrt(discriminant))*(1/(2*a))
+
+# do not understand why not working?
+spl.base <-   root2 
+
+spl.quad.yall.2023 <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.quad = as.integer(spl.base))
+
+spl.quad.yall.table.2023 <- spl.quad.yall.2023 %>%
+  rename("spl" = "spl.quad")
+
+spl.quad.yall.2023.50 <- akmat %>%
+  dplyr::select(adults,kids) %>%
+  add_column(spl.quad = 0.5*as.integer(spl.base))
+
+spl.quad.yall.table.2023.50 <- spl.quad.yall.2023.50 %>%
+  rename("spl" = "spl.quad")
+
+
+```
+
+
+```{r poor-data, dependson="lcs; lineary-spl-smooth; quady-spl-smooth", results="asis"}
+
+
+# This builds out a simple table...
+# How do we want to use this?
+poor.data <- left_join(lcs2014, spl.lin.yall,
+                       by = c("adults","kids")) %>%
+  left_join(spl.quad.yall, by = c("adults","kids")) %>%
+  mutate(hhsize = adults + kids,
+         lbpoverty = hhsize * 647,
+         ubpoverty = hhsize * 992,
+         y = y.month,
+         x = x.month) %>%
+  group_by(adults,kids) %>%
+  summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
+            lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
+            quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
+            obj.poor.lb = round(100*sum(y < lbpoverty)/n(),2),
+            obj.poor.ub = round(100*sum(y < ubpoverty)/n(),2)) %>%
+  ungroup() 
+
+  #
   
+kable(poor.data, format = "latex", align='rrrrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Precentage of poor households by household structure type based on subjective and objective poverty lines from the Living Conditions Survey 2014-15",
+      col.names=c("Adults","Kids", "Own Value","Linear","Quadratic","Lower","Upper")) %>%
+  add_header_above(c(" "=2, "Subjective Povery"=3, "Objective Poverty" = 2)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated poverty percentages based on subjective poverty lines underscored by linear and quadratic estimates of minimum income levels compared to lower (ZAR 647 per capita in 2014) and upper bound poverty (ZAR 992 per capita) lines from national treasury. Percentages not weighted to the population. Own value represents the percentage of people whose reported income is exceeded by their reported minimum required income.", escape=FALSE, general_title="",threeparttable=TRUE) 
+
+
 ```
 
-The estimates suggest that the percentage change per adult/child is higher in 2023 than it was in 2014/15. The range of estimates for children is from about 5-8% in 2014/15, given the chosen quantiles,  but from 14% to 17% in 2023. For adults, the ranges are similarly different. In 2014/15 the adult range is 2-10%; it is 3-13% in 2023. Furthermore, the estimated percentage changes are generally rising with the quantile, the exception being children in 2014/15, found to yield relatively smaller percentage increases at higher quantiles of minimum required income. In other words, the non-linearities uncovered in the parameter estimates feed into non-constant change estimates, mostly increasing percentage changes in required mininum incomes.
+
+```{r poor-data-ghs, dependson="ghs; lineary-spl-smooth-ghs; quady-spl-smooth-ghs", results="asis"}
+
+# This builds out a simple table...
+# How do we want to use this?
+poor.data <- left_join(ghs2023, spl.lin.yall.2023,
+                       by = c("adults","kids")) %>%
+  left_join(spl.quad.yall.2023, by = c("adults","kids")) %>%
+  mutate(hhsize = adults + kids,
+         lbpoverty = hhsize * 1058,
+         ubpoverty = hhsize * 1558,
+         y = y.month) %>%
+  group_by(adults,kids) %>%
+  summarise(own.subj.poor = round(100*sum(lny < lnminq)/n(),2),
+            lin.subj.poor = round(100*sum(y < spl.linear)/n(),2),
+            quad.subj.poor = round(100*sum(y < spl.quad)/n(),2),
+            obj.poor.lb = round(100*sum(y < lbpoverty)/n(),2),
+            obj.poor.ub = round(100*sum(y < ubpoverty)/n(),2)) %>%
+  ungroup() 
+
+kable(poor.data, format = "latex", align='rrrrrrr',
+      row.names = F,
+      booktabs=TRUE, escape=FALSE, longtable=TRUE,
+      linesep="",
+      caption="Precentage of poor households by household structure type based on subjective and objective poverty lines from the General Household Survey 2023",
+      col.names=c("Adults","Kids", "Own Value","Linear","Quadratic","Lower","Upper")) %>%
+  add_header_above(c(" "=2, "Subjective Poverty"=3, "Objective Poverty" = 2)) %>%
+  kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
+  footnote(general = "Estimated poverty percentages based on subjective poverty lines underscored by linear and quadratic estimates of minimum income levels compared to lower (ZAR 1058 per capita in 2023) and upper bound poverty (ZAR 1558 per capita) lines from national treasury. Percentages not weighted to the population. Own value represents the percentage of people whose reported income is exceeded by their reported minimum required income.", escape=FALSE, general_title="",threeparttable=TRUE) 
+
+
+```
+
+In terms of subjective poverty rates, we find that they tend to be much higher for smaller households, and that the rates are mostly lower for larger households, although that pattern is not monotonic. Furthermore, for households with fewer children, we tend to find higher subjective poverty rates than objective poverty rates. Once the number of adults reaches five, objective rates are at least as high or higher than the subjective rates.
+
+# Conclusion
+
+In this research, we applied a variety of models to two different datasets, to estimate the determinants of minimum required income in the household. We used those estimates to calculate subjective poverty lines, underpinned by the intersection method. We also compared those lines over time, appropriately adjusting for inflation. We then compared the poverty rates that would arise from the application of those poverty lines to the samples that were used for estimation, comparing those rates with what would arise if comparing money-metric rates.
+
+The results suggest that the subjective pverty lines and rates differ over time compared to each other and compared to objective measures generally applied in South Africa. The differences are nuanced. Yes, certain types of households always fair worse under one type of measure or at one point in time; however, there are few obvious patterns or household size gradients in the results to suggest that a per capita money-metric measure properly captures poverty across a wide spectrum of the South African population. Although per capita measures are easy to determine and communicate, they are at best 'blunt' weapons in a complicated measurement exercise. 
+
+A wide variety of subjective data is available across many household surveys in South Africa and elsewhere. This includes consumption adequacy questions, income satisfaction questions, socioeconomic ladder questions, and the MIQ considered here. In addition, there is research on SPNs. To develop a more representative poverty line, we would suggest further research attempting to capture the breadth and depth of as many subjective measures as possible. One option is to develop additional multidimensional indexes [@AlkireFoster2011], extending the work of @Finn2013MDP and @OmotosoKoch2018ChildMPI, amongst others; however, those indexes are driven by arbitrary cut-offs. Reducing the arbitrariness of the cut-off decisions made by researchers and applied when estimating subjective poverty is worthy of additional effort.
+
 
 
 \newpage
@@ -1695,6 +1829,8 @@ All <- lcs2014 %>%
   )),
   adults = as.numeric(adults),
   kids = as.numeric(kids)) %>%
+  filter(y.month <= quantile(y.month, 0.95, na.rm = TRUE),
+         y.month >= quantile(y.month, 0.05, na.rm = TRUE)) %>%
   droplevels()
 
 
@@ -1743,10 +1879,10 @@ our.sum.description <- list(
   "Household Composition" = 
     list("Children: mean (sd)" = ~ qwraps2::mean_sd(kids, denote_sd="paren"),
          "Adults: mean (sd)" = ~ qwraps2::mean_sd(adults, denote_sd="paren")),
- "Log Income and Expenditure" = 
-   list("Expenditure: mean (sd)" = ~ qwraps2::mean_sd(lnx, denote_sd="paren"),
-        "Income: mean (sd)" = ~ qwraps2::mean_sd(lny, denote_sd="paren"),
-        "Minimum income: mean (sd)" = ~ qwraps2::mean_sd(lnminq, denote_sd="paren"))
+ "Income and Expenditure" = 
+   list("Expenditure: mean (sd)" = ~ qwraps2::mean_sd(x.month, denote_sd="paren"),
+        "Income: mean (sd)" = ~ qwraps2::mean_sd(y.month, denote_sd="paren"),
+        "Minimum income: mean (sd)" = ~ qwraps2::mean_sd(minq, denote_sd="paren"))
 )
 
 
@@ -1776,7 +1912,9 @@ All <- ghs2023 %>%
       lny >= lnminq ~ "Enough"
     )),
     adults = as.numeric(adults),
-    kids = as.numeric(kids)) %>%
+    kids = as.numeric(kids))  %>%
+  filter(y.month <= quantile(y.month, 0.95, na.rm = TRUE),
+         y.month >= quantile(y.month, 0.05, na.rm = TRUE)) %>%
   droplevels()
 
 
@@ -1826,10 +1964,10 @@ our.sum.description <- list(
   "Household Composition" = 
     list("Children: mean (sd)" = ~ qwraps2::mean_sd(kids, denote_sd="paren"),
          "Adults: mean (sd)" = ~ qwraps2::mean_sd(adults, denote_sd="paren")),
-  "Log Income and Expenditure" = 
+  "Income and Expenditure" = 
     list(#"Expenditure: mean (sd)" = ~ qwraps2::mean_sd(lnx, denote_sd="paren"),
-         "Income: mean (sd)" = ~ qwraps2::mean_sd(lny, denote_sd="paren"),
-         "Minimum income: mean (sd)" = ~ qwraps2::mean_sd(lnminq, denote_sd="paren"))
+         "Income: mean (sd)" = ~ qwraps2::mean_sd(y.month, denote_sd="paren"),
+         "Minimum income: mean (sd)" = ~ qwraps2::mean_sd(minq, denote_sd="paren"))
 )
 
 
@@ -1860,17 +1998,24 @@ print(our.sum.table, vline="", align="l|rrr",longtable=TRUE,booktabs=T,linesep="
 
 ```{r spl-table, dependson="lineary-spl-smooth; quady-spl-smooth; lineary-spl-smooth-ghs; quady-spl-smooth-ghs; some-functions", results="asis", size = "footnotesize"}
 
-spl.tab <- cbind(spl.lin.yall.table, spl.quad.yall.table[,3], 
-                 spl.lin.yall.table.2023[,3], spl.quad.yall.table.2023[,3]) 
+spl.tab <- cbind(spl.lin.yall.table[,c(1:2,14)], 
+                 spl.quad.yall.table[,3],
+                 spl.lin.yall.table.50[,3], 
+                 spl.quad.yall.table.50[,3],
+                 spl.lin.yall.table.2023[,3],
+                 spl.quad.yall.table.2023[,3]) 
                  #round( zed[,3:6], digits=0))
 
-kable(spl.tab, format = "latex", align='cccccc',
-      row.names = F,
+kable(spl.tab, format = "latex", align='cccccccc',
+      row.names = F, digits = 0,
       booktabs=TRUE, escape=FALSE, longtable=TRUE,
       linesep="",
       caption="Estimate of subjective poverty lines based on minimum household income, underpinned by linear regression model using data from the Living Conditions Survey 2014-15 and the General Household Survey 2023",
-      col.names=c("Adults","Kids", "Linear", "Qadratic","Linear", "Qadratic")) %>%
-  add_header_above(c(" "=2, "Living Conditions"=2, "General Household" = 2)) %>%
+      col.names=c("Adults","Kids", "Linear", "Qadratic",
+                  "Linear", "Qadratic","Linear", "Qadratic")) %>%
+  add_header_above(c(" "=2, "Unadjusted"=2, "Inflation adjusted"=2,
+                     "Unadjusted" = 2)) %>%
+  add_header_above(c(" "=2, "Living Conditions"=4, "General Household" = 2)) %>%
   kable_styling(latex_options = c("striped", "hold_position", position="center")) %>%
   footnote(general = "Estimated poverty lines by household type (adults and kids), netting out effects related to location, and other household head controls.", escape=FALSE, general_title="",threeparttable=TRUE) 
 ```
@@ -1898,24 +2043,25 @@ ddr <- rbind(ddr1, ddr2)
 lcsly <- rbind(lcs_ly_smooth_tab[1:4,],
               ddr,
               lcs_ly_smooth_tab[5:98,])
-lcsly_tab <- lcsly[c(3:22,99:100),]
+lcsly_tab <- lcsly[c(1:22,99:100),]
 
 # lcs quadratic y and smooth a/k
 #lcs_qy_smooth_tab 
-lcsqy_tab <- lcs_qy_smooth_tab[c(3:22,99:100),]
+lcsqy_tab <- lcs_qy_smooth_tab[c(1:22,99:100),]
 
 # ghs linear y and smooth a/k
 #ghs_ly_smooth_tab 
 ghsly <- rbind(ghs_ly_smooth_tab[1:4,],
               ddr,
               ghs_ly_smooth_tab[5:82,])
-ghsly_tab <- ghsly[c(3:22,83:84),]
+ghsly_tab <- ghsly[c(1:22,83:84),]
 
 # lcs quadratic y and smooth a/k
 #lcs_qy_smooth_tab 
-ghsqy_tab <- ghs_qy_smooth_tab[c(3:22,83:84),]
+ghsqy_tab <- ghs_qy_smooth_tab[c(1:22,83:84),]
 
-smooth.tab.names <- c("Income","","Squared log income", "",
+smooth.tab.names <- c("Intercept", "",
+                      "Income","","Squared log income", "",
         "Adults in HH","", "Kids in HH","",
         "Age of HH Head","", "Squared age of head","",
         "Female head","", "Coloured head","",
@@ -1956,24 +2102,25 @@ ddr <- rbind(ddr1, ddr2)
 lcsly <- rbind(lcs_ly_dummies_tab[1:4,],
               ddr,
               lcs_ly_dummies_tab[5:112,])
-lcsly_tab <- lcsly[c(3:36,113:114),]
+lcsly_tab <- lcsly[c(1:36,113:114),]
 
 # lcs quadratic y and dummies a/k
 #lcs_qy_dummies_tab 
-lcsqy_tab <- lcs_qy_dummies_tab[c(3:36,113:114),]
+lcsqy_tab <- lcs_qy_dummies_tab[c(1:36,113:114),]
 
 # ghs linear y and dummies a/k
 #ghs_ly_dummies_tab 
 ghsly <- rbind(ghs_ly_dummies_tab[1:4,],
               ddr,
               ghs_ly_dummies_tab[5:96,])
-ghsly_tab <- ghsly[c(3:36,97:98),,]
+ghsly_tab <- ghsly[c(1:36,97:98),,]
 
 # lcs quadratic y and dummies a/k
 #lcs_qy_dummies_tab 
-ghsqy_tab <- ghs_qy_dummies_tab[c(3:36,97:98),]
+ghsqy_tab <- ghs_qy_dummies_tab[c(1:36,97:98),]
 
-dummies.tab.names <- c("Income","","Squared log income", "",
+dummies.tab.names <- c("Intercept","",
+                       "Income","","Squared log income", "",
                        "One child","","Two children","",
                        "Three children","","Four children","",
                        "Two adults","", "Three adults","",
@@ -2004,6 +2151,4 @@ kable(dummies.tab, format = "latex", align='lrrrr',
   footnote(general = "Estimated coefficients across surveys.  Models also included province, survey month, head education, marital status and settlement-type fixed effects.", escape=FALSE, general_title="",threeparttable=TRUE) 
 
 ```
-
-
 
